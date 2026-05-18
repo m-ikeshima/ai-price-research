@@ -1,0 +1,26 @@
+# Fly.io 設定
+# 使い方:
+#   1) flyctl auth login
+#   2) flyctl launch --no-deploy   (アプリ名を聞かれる - app= の値を上書き)
+#   3) flyctl deploy
+
+app = "ai-price-research"
+primary_region = "nrt"  # Tokyo
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8787"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256

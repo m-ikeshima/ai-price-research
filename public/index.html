@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#0f172a" />
+<title>AI相場リサーチ</title>
+
+<!-- iOS PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="相場リサーチ" />
+<link rel="apple-touch-icon" href="/icon-192.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png" />
+
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" type="image/svg+xml" href="/icon.svg" />
+
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #818cf8;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #f87171;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overscroll-behavior-y: none; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    color: var(--text);
+    min-height: 100vh;
+    padding-top: var(--safe-top);
+    padding-bottom: calc(var(--safe-bottom) + 80px); /* sticky bar用 */
+    -webkit-font-smoothing: antialiased;
+    font-size: 16px; /* iOS自動ズーム防止 */
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 16px; }
+
+  /* ヘッダー */
+  .app-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0 16px;
+  }
+  .app-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+  .app-title { flex: 1; }
+  .app-title h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .app-title p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+  .icon-btn {
+    width: 40px; height: 40px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+  }
+
+  /* パネル */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .panel-title {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* フォーム */
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+  input[type="text"], input[type="password"], input[type="number"], select, textarea {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 16px; /* iOSの自動ズーム防止 */
+    font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  select {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 36px;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  .field-stack > * + * { margin-top: 12px; }
+
+  /* ボタン */
+  button {
+    padding: 14px 18px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+    min-height: 48px; /* タッチターゲット */
+    transition: transform 0.1s, opacity 0.2s;
+    font-family: inherit;
+  }
+  button:active:not(:disabled) { transform: scale(0.97); }
+  button:disabled { opacity: 0.5; }
+  button.secondary {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row > * { flex: 1; }
+
+  /* 画像アップロード */
+  .upload-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .upload-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 12px;
+    text-align: center;
+    cursor: pointer;
+    color: var(--text);
+    transition: background 0.2s;
+  }
+  .upload-btn:active { background: var(--border); }
+  .upload-btn .icon { font-size: 28px; display: block; margin-bottom: 4px; }
+  .upload-btn .lbl { font-size: 13px; font-weight: 600; }
+  #cameraInput, #galleryInput { display: none; }
+
+  .thumbs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .thumb {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb .remove {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 26px; height: 26px;
+    background: rgba(0,0,0,0.75);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    color: white;
+    line-height: 1;
+  }
+
+  /* マーケット選択 */
+  .market-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .market-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .market-chip.checked {
+    background: rgba(56,189,248,0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .market-chip input { display: none; }
+  .market-chip .dot { font-size: 14px; }
+
+  /* AI結果 */
+  .ai-result {
+    background: rgba(56,189,248,0.06);
+    border: 1px solid rgba(56,189,248,0.3);
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 12px;
+  }
+  .ai-result .lbl { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+  .ai-result .val { color: var(--accent); font-weight: 700; font-size: 15px; word-break: break-word; }
+
+  /* ステータス */
+  .status {
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--panel-2);
+    border-left: 3px solid var(--accent);
+    font-size: 13px;
+    color: var(--muted);
+    display: none;
+    margin-top: 12px;
+  }
+  .status.show { display: block; }
+  .status.error { border-left-color: var(--danger); color: var(--danger); background: rgba(248,113,113,0.08); }
+  .status.success { border-left-color: var(--success); color: var(--success); background: rgba(52,211,153,0.08); }
+
+  /* サマリ */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .stat-card {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 12px;
+    text-align: center;
+  }
+  .stat-card.highlight {
+    background: linear-gradient(135deg, rgba(56,189,248,0.1), rgba(129,140,248,0.1));
+    border-color: var(--accent);
+  }
+  .stat-card .lbl { font-size: 11px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+  .stat-card .val { font-size: 20px; font-weight: 800; color: var(--accent); line-height: 1.2; }
+  .stat-card .sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  /* 価格帯分布 */
+  .bars { margin-top: 14px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 11px; }
+  .bar-label { width: 80px; color: var(--muted); flex-shrink: 0; }
+  .bar-track { flex: 1; height: 18px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.4s; }
+  .bar-value { width: 50px; text-align: right; color: var(--accent); font-weight: 700; flex-shrink: 0; }
+
+  /* 結果リスト（カード形式） */
+  .tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: 8px 14px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .tab.active {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+  .result-list { display: flex; flex-direction: column; gap: 8px; }
+  .result-card {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .result-card a { color: inherit; text-decoration: none; }
+  .result-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .result-title { font-size: 13px; line-height: 1.4; flex: 1; }
+  .result-price { font-size: 16px; font-weight: 800; color: var(--success); white-space: nowrap; }
+  .result-meta { display: flex; gap: 8px; font-size: 11px; color: var(--muted); flex-wrap: wrap; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+  }
+  .badge-yahoo, .badge-yahoo_auction { background: #ef4444; }
+  .badge-paypay { background: #f97316; }
+  .badge-mercari { background: #dc2626; }
+  .badge-rakuma { background: #db2777; }
+  .badge-ebay { background: #2563eb; }
+  .badge-tiktok { background: #1e293b; border: 1px solid #ec4899; }
+
+  /* スティッキー実行ボタン */
+  .sticky-action {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: 0;
+    background: linear-gradient(180deg, transparent 0%, rgba(15,23,42,0.9) 30%, var(--bg) 100%);
+    padding: 16px 16px calc(16px + var(--safe-bottom));
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .sticky-action .inner { max-width: 720px; margin: 0 auto; display: flex; gap: 8px; }
+  .sticky-action button { flex: 1; }
+
+  /* 設定モーダル */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    z-index: 200;
+    align-items: flex-end;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--panel);
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 16px calc(20px + var(--safe-bottom));
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .modal-header h2 { margin: 0; font-size: 16px; }
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 24px;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    cursor: pointer;
+  }
+  .info-box {
+    background: rgba(56,189,248,0.06);
+    border-left: 3px solid var(--accent);
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+  .hidden { display: none !important; }
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (min-width: 600px) {
+    .summary-grid { grid-template-columns: repeat(4, 1fr); }
+    .market-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- ヘッダー -->
+  <div class="app-header">
+    <div class="app-icon">🔍</div>
+    <div class="app-title">
+      <h1>AI相場リサーチ</h1>
+      <p>画像から複数マーケットの実取引価格を一括検索</p>
+    </div>
+    <div class="icon-btn" id="btnSettings" title="設定">⚙️</div>
+  </div>
+
+  <!-- 画像アップロード -->
+  <div class="panel">
+    <h2 class="panel-title">📷 商品の写真</h2>
+    <div class="upload-buttons">
+      <label for="cameraInput" class="upload-btn">
+        <span class="icon">📸</span>
+        <span class="lbl">カメラで撮影</span>
+      </label>
+      <label for="galleryInput" class="upload-btn">
+        <span class="icon">🖼️</span>
+        <span class="lbl">写真ライブラリ</span>
+      </label>
+    </div>
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" />
+    <input type="file" id="galleryInput" accept="image/*" multiple />
+    <div class="thumbs" id="thumbs"></div>
+  </div>
+
+  <!-- 検索条件 -->
+  <div class="panel">
+    <h2 class="panel-title">🏷️ 検索条件</h2>
+    <div class="field-stack">
+      <div>
+        <label>商品の状態</label>
+        <select id="condition">
+          <option value="any">指定なし</option>
+          <option value="new">新品・未使用</option>
+          <option value="like_new">未使用に近い</option>
+          <option value="good">目立った傷や汚れなし</option>
+          <option value="fair">やや傷や汚れあり</option>
+          <option value="poor">傷や汚れあり</option>
+          <option value="junk">ジャンク・全体的に状態が悪い</option>
+        </select>
+      </div>
+      <div>
+        <label>除外キーワード（半角スペース区切り）</label>
+        <input type="text" id="excludeKw" placeholder="例: ジャンク 部品取り" />
+      </div>
+    </div>
+    <label style="margin-top:14px">対象マーケット</label>
+    <div class="market-grid" id="marketChecks">
+      <label class="market-chip checked"><input type="checkbox" value="yahoo_auction" checked /><span class="dot">🏛️</span>ヤフオク!</label>
+      <label class="market-chip checked"><input type="checkbox" value="paypay" checked /><span class="dot">🛍️</span>Yahoo!フリマ</label>
+      <label class="market-chip checked"><input type="checkbox" value="mercari" checked /><span class="dot">🟥</span>メルカリ</label>
+      <label class="market-chip checked"><input type="checkbox" value="rakuma" checked /><span class="dot">🟪</span>ラクマ</label>
+      <label class="market-chip"><input type="checkbox" value="ebay" /><span class="dot">🌐</span>eBay</label>
+      <label class="market-chip"><input type="checkbox" value="tiktok" /><span class="dot">▶️</span>TikTok Shop</label>
+    </div>
+  </div>
+
+  <!-- AI識別結果 -->
+  <div class="panel" id="aiPanel">
+    <h2 class="panel-title">🤖 AI識別結果</h2>
+    <div id="aiResultBox" class="hidden">
+      <div class="ai-result">
+        <div class="lbl">識別された検索キーワード</div>
+        <div class="val" id="aiResultText"></div>
+      </div>
+      <label style="margin-top:12px">キーワードを編集</label>
+      <input type="text" id="finalKeyword" placeholder="検索キーワード" />
+    </div>
+    <div id="aiHint" style="color:var(--muted);font-size:13px;">
+      写真をアップロードしてから下の「AIで識別」ボタンを押してください。
+    </div>
+  </div>
+
+  <!-- ステータス -->
+  <div id="status" class="status"></div>
+
+  <!-- 価格サマリ -->
+  <div class="panel hidden" id="summaryPanel">
+    <h2 class="panel-title">📊 価格サマリ</h2>
+    <div class="summary-grid" id="summaryGrid"></div>
+    <div class="bars" id="distBars"></div>
+  </div>
+
+  <!-- 結果一覧 -->
+  <div class="panel hidden" id="resultsPanel">
+    <h2 class="panel-title">📋 取引データ</h2>
+    <div class="tabs" id="tabBar"></div>
+    <div class="result-list" id="resultList"></div>
+  </div>
+</div>
+
+<!-- スティッキー実行ボタン -->
+<div class="sticky-action">
+  <div class="inner">
+    <button id="btnAnalyze" class="secondary">🤖 AIで識別</button>
+    <button id="btnSearch">🔎 検索実行</button>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>⚙️ 設定</h2>
+      <button class="modal-close" id="btnCloseSettings">×</button>
+    </div>
+    <div class="field-stack">
+      <div>
+        <label>AI Vision プロバイダ</label>
+        <select id="aiProvider">
+          <option value="claude">Anthropic Claude (Vision)</option>
+          <option value="openai">OpenAI GPT-4o Vision</option>
+          <option value="manual">使用しない（手入力）</option>
+        </select>
+      </div>
+      <div>
+        <label>APIキー</label>
+        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off" />
+      </div>
+      <div>
+        <label>サーバーURL（通常は変更不要）</label>
+        <input type="text" id="proxyUrl" placeholder="https://your-server.example.com" />
+      </div>
+    </div>
+    <div class="info-box">
+      🔒 APIキーは端末のlocalStorageにのみ保存され、外部に送信されません。
+    </div>
+    <div class="info-box" style="margin-top:8px">
+      📱 「ホーム画面に追加」するには、Safariの共有ボタン → 「ホーム画面に追加」を選択してください。
+    </div>
+    <button id="btnSaveSettings" style="margin-top:14px">保存</button>
+  </div>
+</div>
+
+<script>
+// ====== グローバル状態 ======
+const state = {
+  images: [],
+  aiKeyword: '',
+  results: [],
+};
+
+// ====== DOM ======
+const $ = (id) => document.getElementById(id);
+const thumbs = $('thumbs');
+const statusEl = $('status');
+
+// ====== サーバーURL: 同一オリジン優先 ======
+function getServerUrl() {
+  const saved = (localStorage.getItem('rs_proxyUrl') || '').trim();
+  if (saved) return saved.replace(/\/$/, '');
+  // 同一オリジン (PWAデプロイ時)
+  return window.location.origin;
+}
+
+// ====== localStorage 永続化 ======
+['aiProvider', 'apiKey', 'proxyUrl'].forEach(k => {
+  const el = $(k);
+  const saved = localStorage.getItem('rs_' + k);
+  if (saved) el.value = saved;
+});
+
+// ====== 設定モーダル ======
+$('btnSettings').onclick = () => $('settingsModal').classList.add('show');
+$('btnCloseSettings').onclick = () => $('settingsModal').classList.remove('show');
+$('btnSaveSettings').onclick = () => {
+  ['aiProvider', 'apiKey', 'proxyUrl'].forEach(k => {
+    localStorage.setItem('rs_' + k, $(k).value);
+  });
+  $('settingsModal').classList.remove('show');
+  setStatus('設定を保存しました', 'success');
+  setTimeout(clearStatus, 2000);
+};
+$('settingsModal').addEventListener('click', (e) => {
+  if (e.target.id === 'settingsModal') $('settingsModal').classList.remove('show');
+});
+
+// ====== マーケットチップ ======
+document.querySelectorAll('.market-chip').forEach(chip => {
+  const input = chip.querySelector('input');
+  chip.addEventListener('click', (e) => {
+    if (e.target !== input) {
+      e.preventDefault();
+      input.checked = !input.checked;
+    }
+    chip.classList.toggle('checked', input.checked);
+  });
+});
+
+// ====== 画像アップロード ======
+$('cameraInput').addEventListener('change', (e) => handleFiles(e.target.files));
+$('galleryInput').addEventListener('change', (e) => handleFiles(e.target.files));
+
+function handleFiles(files) {
+  for (const f of files) {
+    if (state.images.length >= 10) break;
+    if (!f.type.startsWith('image/')) continue;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      state.images.push({ file: f, dataUrl: e.target.result });
+      renderThumbs();
+    };
+    reader.readAsDataURL(f);
+  }
+  // input をリセット (同じファイルを再アップロード可能に)
+  $('cameraInput').value = '';
+  $('galleryInput').value = '';
+}
+
+function renderThumbs() {
+  thumbs.innerHTML = '';
+  state.images.forEach((img, i) => {
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    div.innerHTML = `<img src="${img.dataUrl}"><div class="remove" data-i="${i}">×</div>`;
+    thumbs.appendChild(div);
+  });
+  thumbs.querySelectorAll('.remove').forEach(el => {
+    el.onclick = (e) => {
+      state.images.splice(parseInt(e.target.dataset.i), 1);
+      renderThumbs();
+    };
+  });
+}
+
+// ====== ステータス ======
+function setStatus(msg, type = 'info') {
+  statusEl.className = 'status show' + (type !== 'info' ? ' ' + type : '');
+  statusEl.innerHTML = msg;
+  statusEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function clearStatus() { statusEl.className = 'status'; }
+
+// ====== AI Vision呼び出し ======
+async function analyzeImagesWithAI() {
+  const provider = localStorage.getItem('rs_aiProvider') || $('aiProvider').value;
+  const apiKey = localStorage.getItem('rs_apiKey') || $('apiKey').value.trim();
+
+  if (provider === 'manual') {
+    $('aiResultBox').classList.remove('hidden');
+    $('aiHint').classList.add('hidden');
+    $('finalKeyword').focus();
+    setStatus('手入力モードです。キーワードを入力してください。');
+    return;
+  }
+  if (!apiKey) {
+    setStatus('⚙️設定からAPIキーを入力してください', 'error');
+    $('settingsModal').classList.add('show');
+    return;
+  }
+  if (state.images.length === 0) {
+    setStatus('写真をアップロードしてください', 'error');
+    return;
+  }
+
+  setStatus('<span class="spinner"></span>AIが画像を解析中...');
+  try {
+    let keyword = '';
+    if (provider === 'claude') keyword = await analyzeWithClaude(apiKey);
+    else if (provider === 'openai') keyword = await analyzeWithOpenAI(apiKey);
+
+    state.aiKeyword = keyword;
+    $('aiResultText').textContent = keyword;
+    $('finalKeyword').value = keyword;
+    $('aiResultBox').classList.remove('hidden');
+    $('aiHint').classList.add('hidden');
+    setStatus('AI識別完了！キーワードを編集してから検索できます', 'success');
+  } catch (err) {
+    console.error(err);
+    setStatus('AI解析エラー: ' + err.message, 'error');
+  }
+}
+
+async function analyzeWithClaude(apiKey) {
+  const content = [
+    {
+      type: 'text',
+      text: '画像の商品を1つの検索キーワードとして返してください。日本のフリマアプリで検索しやすい形式（メーカー名 + 型番 or 商品名 + 特徴）でお願いします。説明や前置きは不要で、検索キーワード文字列のみを出力してください。'
+    }
+  ];
+  for (const img of state.images) {
+    const base64 = img.dataUrl.split(',')[1];
+    const mediaType = img.file.type;
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: mediaType, data: base64 }
+    });
+  }
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 200,
+      messages: [{ role: 'user', content }]
+    })
+  });
+  if (!res.ok) throw new Error('Claude API: ' + (await res.text()));
+  const data = await res.json();
+  return data.content[0].text.trim();
+}
+
+async function analyzeWithOpenAI(apiKey) {
+  const content = [
+    { type: 'text', text: '画像の商品を1つの検索キーワードとして返してください。日本のフリマアプリで検索しやすい形式（メーカー名 + 型番 or 商品名 + 特徴）。検索キーワード文字列のみを出力してください。' }
+  ];
+  for (const img of state.images) {
+    content.push({ type: 'image_url', image_url: { url: img.dataUrl } });
+  }
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + apiKey },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      max_tokens: 200,
+      messages: [{ role: 'user', content }]
+    })
+  });
+  if (!res.ok) throw new Error('OpenAI API: ' + (await res.text()));
+  const data = await res.json();
+  return data.choices[0].message.content.trim();
+}
+
+// ====== 検索実行 ======
+async function searchAllMarkets() {
+  const keyword = ($('finalKeyword').value || '').trim();
+  if (!keyword) {
+    setStatus('まず「AIで識別」を実行するか、キーワードを入力してください', 'error');
+    return;
+  }
+  const markets = Array.from(document.querySelectorAll('#marketChecks input:checked')).map(c => c.value);
+  if (markets.length === 0) { setStatus('対象マーケットを1つ以上選択してください', 'error'); return; }
+
+  const exclude = $('excludeKw').value.trim();
+  const condition = $('condition').value;
+  const serverUrl = getServerUrl();
+
+  state.results = [];
+  $('summaryPanel').classList.add('hidden');
+  $('resultsPanel').classList.add('hidden');
+
+  setStatus(`<span class="spinner"></span>${markets.length} マーケットを検索中... "${keyword}"`);
+
+  const promises = markets.map(market =>
+    fetch(`${serverUrl}/api/search?market=${market}&q=${encodeURIComponent(keyword)}&exclude=${encodeURIComponent(exclude)}&condition=${condition}`)
+      .then(r => r.ok ? r.json() : r.json().catch(() => ({ error: r.statusText, items: [] })))
+      .then(data => ({ market, ...data }))
+      .catch(err => ({ market, error: err.message, items: [] }))
+  );
+
+  const results = await Promise.all(promises);
+
+  let total = 0;
+  const perMarket = {};
+  for (const r of results) {
+    perMarket[r.market] = { count: (r.items || []).length, error: r.error };
+    for (const item of (r.items || [])) {
+      state.results.push({ ...item, market: r.market });
+      total++;
+    }
+  }
+
+  if (total === 0) {
+    const errs = Object.entries(perMarket).filter(([k,v]) => v.error).map(([k,v]) => `${k}: ${v.error}`).join(' / ');
+    setStatus(`取引データが見つかりませんでした${errs ? '<br>' + errs : ''}`, 'error');
+    return;
+  }
+  setStatus(`✅ ${total} 件取得 (${markets.length}マーケット)`, 'success');
+  renderSummary();
+  renderResults(perMarket);
+}
+
+// ====== サマリ表示 ======
+function renderSummary() {
+  const prices = state.results.map(r => r.price).filter(p => typeof p === 'number' && p > 0);
+  if (prices.length === 0) return;
+
+  const sorted = [...prices].sort((a, b) => a - b);
+  const sum = sorted.reduce((a, b) => a + b, 0);
+  const avg = Math.round(sum / sorted.length);
+  const min = sorted[0];
+  const max = sorted[sorted.length - 1];
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const variance = sorted.reduce((acc, v) => acc + Math.pow(v - avg, 2), 0) / sorted.length;
+  const std = Math.round(Math.sqrt(variance));
+  const fmt = (n) => '¥' + n.toLocaleString();
+
+  $('summaryGrid').innerHTML = `
+    <div class="stat-card highlight"><div class="lbl">平均価格</div><div class="val">${fmt(avg)}</div><div class="sub">±${std.toLocaleString()}</div></div>
+    <div class="stat-card highlight"><div class="lbl">中央値</div><div class="val">${fmt(median)}</div><div class="sub">外れ値に強い</div></div>
+    <div class="stat-card"><div class="lbl">最高価格</div><div class="val">${fmt(max)}</div><div class="sub">${prices.length}件中</div></div>
+    <div class="stat-card"><div class="lbl">最低価格</div><div class="val">${fmt(min)}</div><div class="sub">${prices.length}件中</div></div>
+  `;
+
+  const buckets = 6;
+  const range = max - min || 1;
+  const step = range / buckets;
+  const counts = new Array(buckets).fill(0);
+  for (const p of prices) {
+    let idx = Math.floor((p - min) / step);
+    if (idx >= buckets) idx = buckets - 1;
+    counts[idx]++;
+  }
+  const maxCount = Math.max(...counts);
+  let html = '<div style="font-size:11px;color:var(--muted);margin-bottom:6px">価格帯分布</div>';
+  for (let i = 0; i < buckets; i++) {
+    const from = Math.round(min + step * i);
+    const pct = maxCount ? (counts[i] / maxCount) * 100 : 0;
+    html += `<div class="bar-row">
+      <div class="bar-label">${fmt(from)}〜</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      <div class="bar-value">${counts[i]}件</div>
+    </div>`;
+  }
+  $('distBars').innerHTML = html;
+  $('summaryPanel').classList.remove('hidden');
+}
+
+function renderResults(perMarket) {
+  const tabBar = $('tabBar');
+  tabBar.innerHTML = `<div class="tab active" data-filter="all">すべて ${state.results.length}</div>`;
+  const grouped = {};
+  for (const r of state.results) grouped[r.market] = (grouped[r.market] || 0) + 1;
+  for (const m in grouped) {
+    const tab = document.createElement('div');
+    tab.className = 'tab';
+    tab.dataset.filter = m;
+    tab.textContent = `${marketLabel(m)} ${grouped[m]}`;
+    tabBar.appendChild(tab);
+  }
+  tabBar.querySelectorAll('.tab').forEach(t => {
+    t.onclick = () => {
+      tabBar.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      filterResults(t.dataset.filter);
+    };
+  });
+  filterResults('all');
+  $('resultsPanel').classList.remove('hidden');
+}
+
+function filterResults(market) {
+  const list = $('resultList');
+  list.innerHTML = '';
+  const items = market === 'all' ? state.results : state.results.filter(r => r.market === market);
+  items.sort((a, b) => (b.price || 0) - (a.price || 0));
+  for (const r of items) {
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    const inner = `
+      <div class="result-head">
+        <div class="result-title">${escapeHtml(r.title)}</div>
+        <div class="result-price">¥${(r.price || 0).toLocaleString()}</div>
+      </div>
+      <div class="result-meta">
+        <span class="badge badge-${r.market}">${marketLabel(r.market)}</span>
+        ${r.condition ? `<span>${escapeHtml(r.condition)}</span>` : ''}
+        ${r.sold_date ? `<span>${escapeHtml(r.sold_date)}</span>` : ''}
+        ${r.note ? `<span>${escapeHtml(r.note)}</span>` : ''}
+      </div>`;
+    card.innerHTML = r.url ? `<a href="${r.url}" target="_blank" rel="noopener">${inner}</a>` : inner;
+    list.appendChild(card);
+  }
+}
+
+function marketLabel(m) {
+  return {
+    yahoo_auction: 'ヤフオク!',
+    paypay: 'Yahoo!フリマ',
+    mercari: 'メルカリ',
+    rakuma: 'ラクマ',
+    ebay: 'eBay',
+    tiktok: 'TikTok'
+  }[m] || m;
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ====== イベント ======
+$('btnAnalyze').onclick = analyzeImagesWithAI;
+$('btnSearch').onclick = searchAllMarkets;
+
+// ====== Service Worker 登録 (PWA) ======
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed:', err));
+  });
+}
+
+// 画面表示時にヒント
+if (!localStorage.getItem('rs_apiKey') && !localStorage.getItem('rs_aiProvider')) {
+  setTimeout(() => {
+    setStatus('まずは右上の⚙️からAPIキーを設定してください', 'info');
+  }, 500);
+}
+</script>
+</body>
+</html>
