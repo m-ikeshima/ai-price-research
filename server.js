@@ -66,6 +66,68 @@ function applyExclude(items, excludeStr) {
   return items.filter(it => !words.some(w => (it.title || '').toLowerCase().includes(w.toLowerCase())));
 }
 
+// ブランド名の別表記マップ（カタカナ⇔英語）
+const BRAND_ALIASES = {
+  'ルイヴィトン': ['ルイヴィトン', 'ルイ・ヴィトン', 'louis vuitton', 'louisvuitton', 'lv'],
+  'シャネル': ['シャネル', 'chanel'],
+  'グッチ': ['グッチ', 'gucci'],
+  'エルメス': ['エルメス', 'hermes', 'hermès'],
+  'プラダ': ['プラダ', 'prada'],
+  'ディオール': ['ディオール', 'dior'],
+  'コーチ': ['コーチ', 'coach'],
+  'バレンシアガ': ['バレンシアガ', 'balenciaga'],
+  'セリーヌ': ['セリーヌ', 'celine'],
+  'フェンディ': ['フェンディ', 'fendi'],
+  'バーバリー': ['バーバリー', 'burberry'],
+  'ボッテガヴェネタ': ['ボッテガヴェネタ', 'ボッテガ・ヴェネタ', 'bottega veneta', 'bottegaveneta'],
+  'サンローラン': ['サンローラン', 'saint laurent', 'ysl'],
+  'ナイキ': ['ナイキ', 'nike'],
+  'アディダス': ['アディダス', 'adidas'],
+  'プーマ': ['プーマ', 'puma'],
+  'ニューバランス': ['ニューバランス', 'new balance', 'newbalance', 'nb'],
+  'コンバース': ['コンバース', 'converse'],
+  'バンズ': ['バンズ', 'vans'],
+  'アップル': ['アップル', 'apple', 'iphone', 'ipad', 'macbook', 'imac', 'airpods'],
+  'ソニー': ['ソニー', 'sony'],
+  'パナソニック': ['パナソニック', 'panasonic'],
+  'シャープ': ['シャープ', 'sharp'],
+  'ニコン': ['ニコン', 'nikon'],
+  'キヤノン': ['キヤノン', 'キャノン', 'canon'],
+  'オリンパス': ['オリンパス', 'olympus', 'om system'],
+  'フジフィルム': ['フジフィルム', 'fujifilm', 'fuji'],
+  'ロレックス': ['ロレックス', 'rolex'],
+  'オメガ': ['オメガ', 'omega'],
+  'カシオ': ['カシオ', 'casio'],
+  'セイコー': ['セイコー', 'seiko'],
+  'シチズン': ['シチズン', 'citizen'],
+  'ニンテンドー': ['ニンテンドー', 'nintendo', '任天堂', 'switch', 'スイッチ'],
+};
+
+function aliasesFor(word) {
+  if (!word) return [];
+  const lower = word.toLowerCase();
+  // 完全一致
+  if (BRAND_ALIASES[word]) return BRAND_ALIASES[word];
+  // 大文字小文字無視で値内検索
+  for (const [k, v] of Object.entries(BRAND_ALIASES)) {
+    if (v.some(a => a.toLowerCase() === lower)) return v;
+  }
+  return [word];
+}
+
+// 関連性フィルタ: 検索結果タイトルにブランド名/主要キーワードが含まれるか確認
+function relevanceFilter(items, query) {
+  if (!query) return items;
+  const words = query.trim().split(/[\s　]+/).filter(w => w.length >= 2);
+  if (words.length === 0) return items;
+  // 1単語目をブランド名とみなす
+  const brandAliases = aliasesFor(words[0]).map(s => s.toLowerCase());
+  return items.filter(it => {
+    const title = (it.title || '').toLowerCase();
+    return brandAliases.some(alias => title.includes(alias));
+  });
+}
+
 async function fetchHtml(url, opts = {}) {
   const res = await axios.get(url, {
     headers: { ...COMMON_HEADERS, ...(opts.headers || {}) },
@@ -109,11 +171,16 @@ async function searchYahooAuction(q, exclude) {
 
     const date = $el.find('.Product__time, .Product__date').first().text().trim();
 
+    // サムネイル画像
+    const imgEl = $el.find('img').first();
+    const image = imgEl.attr('src') || imgEl.attr('data-src') || null;
+
     if (title && price) {
       items.push({
         title,
         price,
         url: href,
+        image,
         sold_date: date || null,
         sold: true,
         condition: null,
@@ -142,10 +209,20 @@ async function searchPayPayFlea(q, exclude) {
         if (!obj || typeof obj !== 'object') return;
         if (Array.isArray(obj)) { obj.forEach(walk); return; }
         if (obj.id && obj.name && obj.price && (obj.itemStatus || obj.status)) {
+          // サムネイル抽出（PayPayフリマ各種パターン）
+          let image = null;
+          if (Array.isArray(obj.thumbnails) && obj.thumbnails.length > 0) {
+            image = typeof obj.thumbnails[0] === 'string' ? obj.thumbnails[0] : (obj.thumbnails[0].url || null);
+          } else if (obj.thumbnail) {
+            image = typeof obj.thumbnail === 'string' ? obj.thumbnail : (obj.thumbnail.url || null);
+          } else if (Array.isArray(obj.images) && obj.images.length > 0) {
+            image = typeof obj.images[0] === 'string' ? obj.images[0] : (obj.images[0].url || null);
+          }
           items.push({
             title: obj.name,
             price: parseInt(obj.price, 10),
             url: `https://paypayfleamarket.yahoo.co.jp/item/${obj.id}`,
+            image,
             sold: (obj.itemStatus === 'sold_out' || obj.status === 'sold_out' || obj.status === 'completed'),
             condition: obj.itemCondition || obj.condition || null,
             sold_date: obj.completedAt || obj.soldAt || null,
@@ -189,10 +266,22 @@ async function searchMercari(q, exclude) {
         if (!obj || typeof obj !== 'object') return;
         if (Array.isArray(obj)) { obj.forEach(walk); return; }
         if (obj.id && obj.name && obj.price !== undefined && (obj.status === 'sold_out' || obj.status === 'trading' || obj.itemConditionId)) {
+          // サムネイル抽出
+          let image = null;
+          if (Array.isArray(obj.thumbnails) && obj.thumbnails.length > 0) {
+            image = typeof obj.thumbnails[0] === 'string' ? obj.thumbnails[0] : (obj.thumbnails[0].url || null);
+          } else if (obj.thumbnail) {
+            image = typeof obj.thumbnail === 'string' ? obj.thumbnail : (obj.thumbnail.url || null);
+          } else if (obj.imageUrl) {
+            image = obj.imageUrl;
+          } else if (Array.isArray(obj.photos) && obj.photos.length > 0) {
+            image = obj.photos[0].uri || obj.photos[0].url || obj.photos[0];
+          }
           items.push({
             title: obj.name,
             price: parseInt(obj.price, 10),
             url: `https://jp.mercari.com/item/${obj.id}`,
+            image,
             sold: obj.status === 'sold_out',
             condition: obj.itemConditionName || null,
             sold_date: obj.updated || null,
@@ -209,12 +298,14 @@ async function searchMercari(q, exclude) {
     $('a[href^="/item/"]').each((_, el) => {
       const $el = $(el);
       const href = 'https://jp.mercari.com' + $el.attr('href');
-      const title = $el.attr('aria-label') || $el.find('img').attr('alt') || '';
+      const img = $el.find('img').first();
+      const title = $el.attr('aria-label') || img.attr('alt') || '';
+      const image = img.attr('src') || img.attr('data-src') || null;
       const priceText = $el.find('[class*=price]').first().text() ||
                         $el.text().match(/¥[\d,]+/)?.[0] || '';
       const price = parsePriceJP(priceText);
       if (title && price) {
-        items.push({ title, price, url: href, sold: true, condition: null });
+        items.push({ title, price, url: href, image, sold: true, condition: null });
       }
     });
   }
@@ -244,10 +335,12 @@ async function searchRakuma(q, exclude) {
                    a.attr('title') || '').trim();
     const priceText = $el.find('.item-price, .item-box__item-price, [class*=price]').first().text();
     const price = parsePriceJP(priceText);
+    const imgEl = $el.find('img').first();
+    const image = imgEl.attr('src') || imgEl.attr('data-src') || imgEl.attr('data-original') || null;
 
     if (title && price) {
       items.push({
-        title, price, url: href, sold: true, condition: null, sold_date: null,
+        title, price, url: href, image, sold: true, condition: null, sold_date: null,
       });
     }
   });
@@ -274,8 +367,9 @@ async function searchEbay(q, exclude) {
     // USDをそのまま入れず、概算円換算 (1USD = 155円固定の目安)
     const priceJpy = Math.round(parseFloat(priceMatch[1]) * 155);
     const cond = $el.find('.SECONDARY_INFO').first().text().trim();
+    const image = $el.find('.s-item__image-img, img').first().attr('src') || null;
     items.push({
-      title, price: priceJpy, url: href, sold: true,
+      title, price: priceJpy, url: href, image, sold: true,
       condition: cond, note: `元値: ${priceText.trim()}`,
     });
   });
@@ -331,6 +425,11 @@ app.get('/api/search', async (req, res) => {
   try {
     let items = await handler(q, exclude);
     items = applyExclude(items, exclude);
+    const beforeCount = items.length;
+    items = relevanceFilter(items, q);
+    if (beforeCount !== items.length) {
+      console.log(`  関連性フィルタ: ${beforeCount} → ${items.length} 件`);
+    }
     res.json({ market, query: q, count: items.length, items });
   } catch (err) {
     console.error(`[${market}] エラー:`, err.message);

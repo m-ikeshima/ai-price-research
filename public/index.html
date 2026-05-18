@@ -256,14 +256,21 @@
     border-radius: 12px;
     padding: 14px 12px;
     text-align: center;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.2s;
+    user-select: none;
   }
+  .stat-card[data-clickable="true"]:active { transform: scale(0.97); }
+  .stat-card[data-clickable="true"]:hover { background: var(--border); }
   .stat-card.highlight {
     background: linear-gradient(135deg, rgba(56,189,248,0.1), rgba(129,140,248,0.1));
     border-color: var(--accent);
   }
+  .stat-card[data-clickable="false"] { cursor: default; opacity: 0.95; }
   .stat-card .lbl { font-size: 11px; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
   .stat-card .val { font-size: 20px; font-weight: 800; color: var(--accent); line-height: 1.2; }
   .stat-card .sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+  .stat-card .tap-hint { font-size: 9px; color: var(--accent); margin-top: 4px; opacity: 0.7; }
 
   /* 価格帯分布 */
   .bars { margin-top: 14px; }
@@ -304,16 +311,30 @@
     background: var(--panel-2);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 12px;
+    padding: 10px;
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    gap: 10px;
+    align-items: stretch;
   }
-  .result-card a { color: inherit; text-decoration: none; }
+  .result-card a { color: inherit; text-decoration: none; display: flex; gap: 10px; width: 100%; }
+  .result-image {
+    flex-shrink: 0;
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    background: #0f172a;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .result-image img { width: 100%; height: 100%; object-fit: cover; }
+  .result-image .placeholder { color: var(--muted); font-size: 24px; }
+  .result-body { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .result-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-  .result-title { font-size: 13px; line-height: 1.4; flex: 1; }
+  .result-title { font-size: 13px; line-height: 1.4; flex: 1; word-break: break-word; }
   .result-price { font-size: 16px; font-weight: 800; color: var(--success); white-space: nowrap; }
-  .result-meta { display: flex; gap: 8px; font-size: 11px; color: var(--muted); flex-wrap: wrap; }
+  .result-meta { display: flex; gap: 6px; font-size: 11px; color: var(--muted); flex-wrap: wrap; align-items: center; }
   .badge {
     display: inline-block;
     padding: 2px 8px;
@@ -698,25 +719,27 @@ async function analyzeWithClaude(apiKey) {
 - ブランドロゴ・刻印・モノグラム柄の有無
 - 商品種別（財布、バッグ、靴、家電、衣類など）
 - 形状・サイズ感（二つ折り/長財布、スニーカー/ローファー等）
-- 外側の色・素材・柄
-- 内側の色・素材（写真にあれば）
+- 主たる色・素材・柄（外側の見た目）
 - 型番・モデル名・シリアル・ロゴテキスト（読み取れれば）
-- 付属品（箱、保存袋、カードなど）
 - 状態（傷、汚れ、使用感）
 - その他の固有の特徴
 
-【ステップ2: モデル特定】
-有名ブランド商品の場合、形状・柄・色から具体的なモデル名を推定してください。
-例: ルイヴィトンの二つ折り財布で内側が緑なら「ポルトフォイユ・ジュリエット」「ポルトフォイユ・エミリー」等の可能性を検討。
+【ステップ2: モデル特定（保守的に）】
+明らかに特定できる場合のみモデル名を含めてください。
+推測や"〜の可能性が高い"レベルでは含めない（誤特定は検索結果を壊します）。
+モノグラムの種類（モノグラム/ダミエ/エピ/エクリプス等）は柄の形状から確実に判別できる場合のみ記載。
 
-【ステップ3: キーワード生成ルール】
+【ステップ3: キーワード生成ルール（絶対に守る）】
 - 半角スペース区切りの単語列、1行のみ
-- 5〜12単語が目安
-- 必ず含める: ブランド名（カタカナ）+ 商品種別 + 色
-- できれば含める: 型番/モデル名、柄、素材、サイズ
-- 推測でしか書けない情報は省略（誤った型番は逆効果）
-- 色は内外両方記載（例: 外側茶 内側緑）
-- 検索でノイズになる一般語（"中古"、"美品"等）は含めない
+- 4〜7単語が目安（多すぎると検索でヒットしません）
+- 必ず先頭にブランド名（カタカナ）
+- 必ず含める: ブランド名 + 商品種別 + メイン色1色
+- 任意で含める: 柄、素材、サイズ
+- **色は必ずカタカナ（グリーン、ブラウン、ブラック、ホワイト、ネイビー、レッド、ピンク等）**
+- **❌ 漢字の色（緑、茶、黒、白、赤、青）は絶対に使わない**
+- 漢字色は別単語と結合して全く違う検索（例:「茶 緑」→「緑茶」）になる事故が起きるため
+- 内外の色違いも、内側は含めず外側のメイン色のみ記載
+- 推測の型番、汎用語（中古/美品/正規品など）は含めない
 
 【出力フォーマット】
 最終行に必ず以下の形式で出力してください:
@@ -725,11 +748,18 @@ KEYWORD: [キーワード文字列]
 それ以外の行（観察メモなど）は出力してもしなくてもOK。最終行のKEYWORD:行のみがシステムで使われます。
 
 【出力例】
-KEYWORD: ルイヴィトン ポルトフォイユ・ジュリエット モノグラム 二つ折り財布 グリーン 内側緑
+KEYWORD: ルイヴィトン モノグラム 二つ折り財布 ブラウン
 
-KEYWORD: ナイキ エアフォース1 ロー ホワイト 27cm レザー スニーカー
+KEYWORD: ルイヴィトン エピ 長財布 ブラック
 
-KEYWORD: アップル iPhone 14 Pro 256GB ディープパープル SIMフリー`
+KEYWORD: ナイキ エアフォース1 ロー ホワイト 27cm
+
+KEYWORD: アップル iPhone 14 Pro 256GB パープル
+
+【NG例】
+❌ KEYWORD: ルイヴィトン 茶 内側緑 → 漢字色NG
+❌ KEYWORD: ルイヴィトン モノグラムエクリプス ポルトフォイユ・スレンダー 茶 → 推測モデル + 漢字色NG
+❌ KEYWORD: ルイヴィトン → 単語数不足`
     }
   ];
   for (const img of state.images) {
@@ -780,36 +810,43 @@ async function analyzeWithOpenAI(apiKey) {
 【ステップ1: 詳細な観察】(内部で実施、出力には含めない)
 - ブランドロゴ・刻印・モノグラム柄の有無
 - 商品種別（財布、バッグ、靴、家電、衣類など）
-- 形状・サイズ感（二つ折り/長財布、スニーカー/ローファー等）
-- 外側の色・素材・柄
-- 内側の色・素材（写真にあれば）
+- 形状・サイズ感
+- 主たる色・素材・柄（外側の見た目）
 - 型番・モデル名・シリアル・ロゴテキスト（読み取れれば）
-- 付属品（箱、保存袋、カードなど）
 - 状態（傷、汚れ、使用感）
-- その他の固有の特徴
 
-【ステップ2: モデル特定】
-有名ブランド商品の場合、形状・柄・色から具体的なモデル名を推定してください。
+【ステップ2: モデル特定（保守的に）】
+明らかに特定できる場合のみモデル名を含めてください。
+推測レベルでは含めない（誤特定は検索結果を壊します）。
 
-【ステップ3: キーワード生成ルール】
+【ステップ3: キーワード生成ルール（絶対に守る）】
 - 半角スペース区切りの単語列、1行のみ
-- 5〜12単語が目安
-- 必ず含める: ブランド名（カタカナ）+ 商品種別 + 色
-- できれば含める: 型番/モデル名、柄、素材、サイズ
-- 推測でしか書けない情報は省略（誤った型番は逆効果）
-- 色は内外両方記載（例: 外側茶 内側緑）
-- 検索でノイズになる一般語（"中古"、"美品"等）は含めない
+- 4〜7単語が目安（多すぎると検索でヒットしません）
+- 必ず先頭にブランド名（カタカナ）
+- 必ず含める: ブランド名 + 商品種別 + メイン色1色
+- 任意で含める: 柄、素材、サイズ
+- **色は必ずカタカナ（グリーン、ブラウン、ブラック、ホワイト、ネイビー、レッド、ピンク等）**
+- **❌ 漢字の色（緑、茶、黒、白、赤、青）は絶対に使わない**
+- 漢字色は別単語と結合して全く違う検索（例:「茶 緑」→「緑茶」）になる事故が起きるため
+- 内外の色違いも、内側は含めず外側のメイン色のみ記載
+- 推測の型番、汎用語（中古/美品/正規品など）は含めない
 
 【出力フォーマット】
 最終行に必ず以下の形式で出力してください:
 KEYWORD: [キーワード文字列]
 
 【出力例】
-KEYWORD: ルイヴィトン ポルトフォイユ・ジュリエット モノグラム 二つ折り財布 グリーン 内側緑
+KEYWORD: ルイヴィトン モノグラム 二つ折り財布 ブラウン
 
-KEYWORD: ナイキ エアフォース1 ロー ホワイト 27cm レザー スニーカー
+KEYWORD: ルイヴィトン エピ 長財布 ブラック
 
-KEYWORD: アップル iPhone 14 Pro 256GB ディープパープル SIMフリー` }
+KEYWORD: ナイキ エアフォース1 ロー ホワイト 27cm
+
+KEYWORD: アップル iPhone 14 Pro 256GB パープル
+
+【NG例】
+❌ KEYWORD: ルイヴィトン 茶 内側緑 → 漢字色NG
+❌ KEYWORD: ルイヴィトン モノグラムエクリプス ポルトフォイユ・スレンダー 茶 → 推測モデル + 漢字色NG` }
   ];
   for (const img of state.images) {
     content.push({ type: 'image_url', image_url: { url: img.dataUrl } });
@@ -879,25 +916,51 @@ async function searchAllMarkets() {
 
 // ====== サマリ表示 ======
 function renderSummary() {
-  const prices = state.results.map(r => r.price).filter(p => typeof p === 'number' && p > 0);
-  if (prices.length === 0) return;
+  const valid = state.results.filter(r => typeof r.price === 'number' && r.price > 0);
+  if (valid.length === 0) return;
 
-  const sorted = [...prices].sort((a, b) => a - b);
-  const sum = sorted.reduce((a, b) => a + b, 0);
-  const avg = Math.round(sum / sorted.length);
-  const min = sorted[0];
-  const max = sorted[sorted.length - 1];
-  const median = sorted[Math.floor(sorted.length / 2)];
-  const variance = sorted.reduce((acc, v) => acc + Math.pow(v - avg, 2), 0) / sorted.length;
+  const sortedItems = [...valid].sort((a, b) => a.price - b.price);
+  const prices = sortedItems.map(r => r.price);
+  const sum = prices.reduce((a, b) => a + b, 0);
+  const avg = Math.round(sum / prices.length);
+  const minItem = sortedItems[0];
+  const maxItem = sortedItems[sortedItems.length - 1];
+  const medianItem = sortedItems[Math.floor(sortedItems.length / 2)];
+  // 平均に最も近い商品
+  let avgItem = sortedItems[0]; let avgDiff = Math.abs(sortedItems[0].price - avg);
+  for (const it of sortedItems) {
+    const d = Math.abs(it.price - avg);
+    if (d < avgDiff) { avgDiff = d; avgItem = it; }
+  }
+  const variance = prices.reduce((acc, v) => acc + Math.pow(v - avg, 2), 0) / prices.length;
   const std = Math.round(Math.sqrt(variance));
   const fmt = (n) => '¥' + n.toLocaleString();
 
+  // タップで該当アイテムのURLを開く（URLが無ければクリック不可）
+  const cardHtml = (lblText, valStr, subStr, item, highlight) => {
+    const has = item && item.url;
+    return `<div class="stat-card ${highlight ? 'highlight' : ''}" data-clickable="${has ? 'true' : 'false'}" data-url="${has ? escapeHtml(item.url) : ''}">
+      <div class="lbl">${lblText}</div>
+      <div class="val">${valStr}</div>
+      <div class="sub">${subStr}</div>
+      ${has ? '<div class="tap-hint">▶ タップで詳細</div>' : ''}
+    </div>`;
+  };
+
   $('summaryGrid').innerHTML = `
-    <div class="stat-card highlight"><div class="lbl">平均価格</div><div class="val">${fmt(avg)}</div><div class="sub">±${std.toLocaleString()}</div></div>
-    <div class="stat-card highlight"><div class="lbl">中央値</div><div class="val">${fmt(median)}</div><div class="sub">外れ値に強い</div></div>
-    <div class="stat-card"><div class="lbl">最高価格</div><div class="val">${fmt(max)}</div><div class="sub">${prices.length}件中</div></div>
-    <div class="stat-card"><div class="lbl">最低価格</div><div class="val">${fmt(min)}</div><div class="sub">${prices.length}件中</div></div>
+    ${cardHtml('平均価格', fmt(avg), `±${std.toLocaleString()}`, avgItem, true)}
+    ${cardHtml('中央値', fmt(medianItem.price), '外れ値に強い', medianItem, true)}
+    ${cardHtml('最高価格', fmt(maxItem.price), `${prices.length}件中`, maxItem, false)}
+    ${cardHtml('最低価格', fmt(minItem.price), `${prices.length}件中`, minItem, false)}
   `;
+
+  // クリックイベント
+  $('summaryGrid').querySelectorAll('.stat-card[data-clickable="true"]').forEach(card => {
+    card.addEventListener('click', () => {
+      const url = card.dataset.url;
+      if (url) window.open(url, '_blank', 'noopener');
+    });
+  });
 
   const buckets = 6;
   const range = max - min || 1;
@@ -954,17 +1017,23 @@ function filterResults(market) {
   for (const r of items) {
     const card = document.createElement('div');
     card.className = 'result-card';
-    const inner = `
-      <div class="result-head">
-        <div class="result-title">${escapeHtml(r.title)}</div>
-        <div class="result-price">¥${(r.price || 0).toLocaleString()}</div>
-      </div>
-      <div class="result-meta">
-        <span class="badge badge-${r.market}">${marketLabel(r.market)}</span>
-        ${r.condition ? `<span>${escapeHtml(r.condition)}</span>` : ''}
-        ${r.sold_date ? `<span>${escapeHtml(r.sold_date)}</span>` : ''}
-        ${r.note ? `<span>${escapeHtml(r.note)}</span>` : ''}
+    const imageHtml = r.image
+      ? `<div class="result-image"><img src="${escapeHtml(r.image)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'placeholder\\'>📷</div>'"></div>`
+      : `<div class="result-image"><div class="placeholder">📷</div></div>`;
+    const bodyHtml = `
+      <div class="result-body">
+        <div class="result-head">
+          <div class="result-title">${escapeHtml(r.title)}</div>
+        </div>
+        <div class="result-meta">
+          <span class="badge badge-${r.market}">${marketLabel(r.market)}</span>
+          ${r.condition ? `<span>${escapeHtml(r.condition)}</span>` : ''}
+          ${r.sold_date ? `<span>${escapeHtml(r.sold_date)}</span>` : ''}
+          ${r.note ? `<span>${escapeHtml(r.note)}</span>` : ''}
+        </div>
+        <div class="result-price" style="margin-top:auto">¥${(r.price || 0).toLocaleString()}</div>
       </div>`;
+    const inner = imageHtml + bodyHtml;
     card.innerHTML = r.url ? `<a href="${r.url}" target="_blank" rel="noopener">${inner}</a>` : inner;
     list.appendChild(card);
   }
