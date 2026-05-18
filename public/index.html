@@ -692,7 +692,44 @@ async function analyzeWithClaude(apiKey) {
   const content = [
     {
       type: 'text',
-      text: '画像の商品を1つの検索キーワードとして返してください。日本のフリマアプリで検索しやすい形式（メーカー名 + 型番 or 商品名 + 特徴）でお願いします。説明や前置きは不要で、検索キーワード文字列のみを出力してください。'
+      text: `あなたは日本のフリマアプリ・オークションサイトで実取引相場を調べるリサーチャーです。画像の商品を詳細に観察し、検索でヒットしやすい最適なキーワードを生成してください。
+
+【ステップ1: 詳細な観察】(内部で実施、出力には含めない)
+- ブランドロゴ・刻印・モノグラム柄の有無
+- 商品種別（財布、バッグ、靴、家電、衣類など）
+- 形状・サイズ感（二つ折り/長財布、スニーカー/ローファー等）
+- 外側の色・素材・柄
+- 内側の色・素材（写真にあれば）
+- 型番・モデル名・シリアル・ロゴテキスト（読み取れれば）
+- 付属品（箱、保存袋、カードなど）
+- 状態（傷、汚れ、使用感）
+- その他の固有の特徴
+
+【ステップ2: モデル特定】
+有名ブランド商品の場合、形状・柄・色から具体的なモデル名を推定してください。
+例: ルイヴィトンの二つ折り財布で内側が緑なら「ポルトフォイユ・ジュリエット」「ポルトフォイユ・エミリー」等の可能性を検討。
+
+【ステップ3: キーワード生成ルール】
+- 半角スペース区切りの単語列、1行のみ
+- 5〜12単語が目安
+- 必ず含める: ブランド名（カタカナ）+ 商品種別 + 色
+- できれば含める: 型番/モデル名、柄、素材、サイズ
+- 推測でしか書けない情報は省略（誤った型番は逆効果）
+- 色は内外両方記載（例: 外側茶 内側緑）
+- 検索でノイズになる一般語（"中古"、"美品"等）は含めない
+
+【出力フォーマット】
+最終行に必ず以下の形式で出力してください:
+KEYWORD: [キーワード文字列]
+
+それ以外の行（観察メモなど）は出力してもしなくてもOK。最終行のKEYWORD:行のみがシステムで使われます。
+
+【出力例】
+KEYWORD: ルイヴィトン ポルトフォイユ・ジュリエット モノグラム 二つ折り財布 グリーン 内側緑
+
+KEYWORD: ナイキ エアフォース1 ロー ホワイト 27cm レザー スニーカー
+
+KEYWORD: アップル iPhone 14 Pro 256GB ディープパープル SIMフリー`
     }
   ];
   for (const img of state.images) {
@@ -714,18 +751,65 @@ async function analyzeWithClaude(apiKey) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 200,
+      max_tokens: 1000,
       messages: [{ role: 'user', content }]
     })
   });
   if (!res.ok) throw new Error('Claude API: ' + (await res.text()));
   const data = await res.json();
-  return data.content[0].text.trim();
+  return extractKeyword(data.content[0].text);
+}
+
+// AIの出力から KEYWORD: 行を抽出
+function extractKeyword(text) {
+  if (!text) return '';
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  // KEYWORD: 行を末尾から探す
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const m = lines[i].match(/^KEYWORD\s*[:：]\s*(.+)$/i);
+    if (m) return m[1].trim();
+  }
+  // フォーマットに従わない場合は最終行を返す
+  return lines[lines.length - 1] || text.trim();
 }
 
 async function analyzeWithOpenAI(apiKey) {
   const content = [
-    { type: 'text', text: '画像の商品を1つの検索キーワードとして返してください。日本のフリマアプリで検索しやすい形式（メーカー名 + 型番 or 商品名 + 特徴）。検索キーワード文字列のみを出力してください。' }
+    { type: 'text', text: `あなたは日本のフリマアプリ・オークションサイトで実取引相場を調べるリサーチャーです。画像の商品を詳細に観察し、検索でヒットしやすい最適なキーワードを生成してください。
+
+【ステップ1: 詳細な観察】(内部で実施、出力には含めない)
+- ブランドロゴ・刻印・モノグラム柄の有無
+- 商品種別（財布、バッグ、靴、家電、衣類など）
+- 形状・サイズ感（二つ折り/長財布、スニーカー/ローファー等）
+- 外側の色・素材・柄
+- 内側の色・素材（写真にあれば）
+- 型番・モデル名・シリアル・ロゴテキスト（読み取れれば）
+- 付属品（箱、保存袋、カードなど）
+- 状態（傷、汚れ、使用感）
+- その他の固有の特徴
+
+【ステップ2: モデル特定】
+有名ブランド商品の場合、形状・柄・色から具体的なモデル名を推定してください。
+
+【ステップ3: キーワード生成ルール】
+- 半角スペース区切りの単語列、1行のみ
+- 5〜12単語が目安
+- 必ず含める: ブランド名（カタカナ）+ 商品種別 + 色
+- できれば含める: 型番/モデル名、柄、素材、サイズ
+- 推測でしか書けない情報は省略（誤った型番は逆効果）
+- 色は内外両方記載（例: 外側茶 内側緑）
+- 検索でノイズになる一般語（"中古"、"美品"等）は含めない
+
+【出力フォーマット】
+最終行に必ず以下の形式で出力してください:
+KEYWORD: [キーワード文字列]
+
+【出力例】
+KEYWORD: ルイヴィトン ポルトフォイユ・ジュリエット モノグラム 二つ折り財布 グリーン 内側緑
+
+KEYWORD: ナイキ エアフォース1 ロー ホワイト 27cm レザー スニーカー
+
+KEYWORD: アップル iPhone 14 Pro 256GB ディープパープル SIMフリー` }
   ];
   for (const img of state.images) {
     content.push({ type: 'image_url', image_url: { url: img.dataUrl } });
@@ -735,13 +819,13 @@ async function analyzeWithOpenAI(apiKey) {
     headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + apiKey },
     body: JSON.stringify({
       model: 'gpt-4o',
-      max_tokens: 200,
+      max_tokens: 1000,
       messages: [{ role: 'user', content }]
     })
   });
   if (!res.ok) throw new Error('OpenAI API: ' + (await res.text()));
   const data = await res.json();
-  return data.choices[0].message.content.trim();
+  return extractKeyword(data.choices[0].message.content);
 }
 
 // ====== 検索実行 ======
