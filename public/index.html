@@ -672,6 +672,7 @@
 const state = {
   images: [],
   aiKeyword: '',
+  aiCategory: '',  // ジャンル（fashion, car, coin等）
   results: [],
 };
 
@@ -766,6 +767,200 @@ function setStatus(msg, type = 'info') {
 }
 function clearStatus() { statusEl.className = 'status'; }
 
+// ====== 全カテゴリ対応 AI プロンプト ======
+const UNIVERSAL_AI_PROMPT = `あなたは日本の買取査定・相場リサーチの専門家です。画像の商品を詳細に観察し、ジャンルを自動判定して、その商品種別に最適な検索キーワードを生成してください。
+
+【ステップ1: 詳細な観察】(内部で実施、出力には含めない)
+画像から読み取れる以下の要素を全て観察:
+- ブランドロゴ・刻印・メーカー表記・型番・シリアル番号・モデル名
+- 商品種別・形状・サイズ・色（メイン色）・素材・柄
+- 状態・付属品・希少性のヒント
+- 文字情報（タイトル、製造年、額面、サイン等）
+- その他特徴的な要素
+
+【ステップ2: ジャンル自動判定】
+以下のいずれかから1つ選択:
+- fashion: ブランドバッグ、財布、靴、衣類（ハイブランド・ノーブランド両方）
+- watch: 腕時計、懐中時計、スマートウォッチ
+- jewelry: 貴金属、宝石、アクセサリー、指輪、ネックレス
+- electronics: 家電、PC、スマホ、タブレット、オーディオ
+- camera: カメラ本体、レンズ、フィルム、関連機材
+- car: 自動車
+- bike: バイク、原付、自転車
+- coin: 古銭、紙幣、記念硬貨、外国コイン
+- stamp: 切手、テレカ、収集系
+- antique: アンティーク、骨董、書画、掛軸、陶磁器、茶道具、仏像、武具
+- toy: フィギュア、プラモデル、ぬいぐるみ、ラジコン、ミニカー
+- game: 家庭用ゲーム機、ソフト、レトロゲーム
+- card: トレーディングカード（ポケカ、遊戯王、MTG、スポーツ）
+- book: 本、雑誌、漫画、写真集、画集
+- media: CD、DVD、Blu-ray、LP、レコード、カセット
+- instrument: 楽器全般（ギター、ピアノ、管楽器、和楽器）
+- sports: スポーツ用品（ゴルフ、釣り、スキー、自転車パーツ）
+- tool: 電動工具、計測機器、業務用工具
+- cosmetic: コスメ、香水、美容機器
+- food_drink: 食品、飲料、酒類、嗜好品（葉巻、たばこ）
+- furniture: 家具、インテリア、照明、デザイナー家具
+- art: 絵画、版画、ポスター、彫刻、現代アート
+- pen_writing: 万年筆、ボールペン、筆記具、文房具
+- lighter: ライター、喫煙具
+- military: ミリタリー、軍用品、サバゲー装備
+- precious_metal: 金地金、銀地金、プラチナ、貴金属（積立用含む）
+- doll: 人形、雛人形、五月人形、フィギュリン
+- bicycle_parts: 自転車本体・パーツ・コンポーネント
+- kimono: 着物、帯、和装小物
+- other: 上記いずれにも当てはまらない雑貨
+
+【ステップ3: ジャンル別キーワード生成ルール】
+半角スペース区切り、1行のみ、4〜8単語が目安。
+
+[fashion] ブランド名(カタカナ)+商品種別+メイン色(カタカナ)+任意で柄/素材
+  例: ルイヴィトン モノグラム 二つ折り財布 ブラウン
+
+[watch] ブランド+モデル名+Ref番号(あれば)+色/金属種
+  例: ロレックス サブマリーナ 116610LN ステンレス
+  例: オメガ シーマスター 自動巻 シルバー
+
+[jewelry] ブランド(あれば)+種別+素材(K18/Pt900等)+宝石+重量
+  例: ティファニー オープンハート ネックレス K18YG
+  例: ダイヤモンド リング 0.5ct プラチナ Pt900
+
+[electronics] メーカー+型番orモデル+容量・スペック+色
+  例: アップル iPhone 14 Pro 256GB パープル
+  例: ソニー WH-1000XM5 ワイヤレスヘッドホン ブラック
+
+[camera] メーカー+型番+ボディ/レンズ区分+焦点距離(レンズ時)
+  例: キヤノン EOS R5 ボディ
+  例: ニコン AF-S 24-70mm f/2.8 G ED レンズ
+
+[car] メーカー+車種名+年式+グレード+色+排気量
+  例: トヨタ アルファード 2019年 ハイブリッド SR シルバー
+  例: 日産 スカイライン GT-R R34 V-spec
+
+[bike] メーカー+モデル+排気量+年式+色
+  例: ホンダ CB400SF 400cc 2019年 ブラック
+  例: ヤマハ YZF-R1 1000cc
+
+[coin] 年号+額面+種類+材質+状態(美品/極美品など)
+  例: 明治31年 一円銀貨 大型 美品
+  例: 昭和61年 10万円 天皇陛下御在位 記念金貨
+
+[stamp] 時代/年代+額面+図柄+セット内容
+  例: 戦前 切手 見返り美人 単片
+  例: 平成記念 切手帳 80円
+
+[antique] 時代+種別+作者(あれば)+素材+特徴
+  例: 江戸時代 九谷焼 花瓶 色絵 古美術
+  例: 明治期 漆器 重箱 蒔絵 桐箱
+
+[toy] 作品名+キャラ名or商品名+メーカー+シリーズ+状態
+  例: ワンピース ルフィ フィギュアーツZERO バンダイ 未開封
+  例: ガンダム RX-78 マスターグレード 1/100 プラモデル
+
+[game] メーカー+機種名+型番+本体orソフト名+カラー
+  例: 任天堂 Switch 有機EL ホワイト 本体
+  例: PS5 グランツーリスモ7 ソフト
+
+[card] ゲーム名+カード名+レアリティ+年代/シリーズ+状態
+  例: ポケモンカード リザードン 1996年 旧裏 初版
+  例: 遊戯王 ブルーアイズホワイトドラゴン 25thシークレット
+
+[book] 書名+著者+出版社+初版/版次
+  例: ノルウェイの森 村上春樹 講談社 初版
+  例: ジョジョの奇妙な冒険 全巻セット 荒木飛呂彦
+
+[media] タイトル+アーティスト/監督+メディア種別+特典版区分
+  例: ONE PIECE FILM RED DVD 通常版
+  例: ビートルズ アビイロード LPレコード 帯付き
+
+[instrument] メーカー+型番+シリーズ+年代+色
+  例: フェンダー ストラトキャスター メキシコ製 2010年 サンバースト
+  例: ヤマハ U3 アップライトピアノ
+
+[sports] メーカー+モデル+サイズ・スペック+色
+  例: ナイキ エアズーム ペガサス 39 27cm ブラック
+  例: タイトリスト T200 アイアン 7本 シャフト
+
+[tool] メーカー+型番+種別+電源仕様
+  例: マキタ TD173 インパクトドライバ 18V バッテリー2個
+
+[cosmetic] ブランド+商品名+容量+色番(あれば)
+  例: シャネル No.5 オードゥパルファム 50ml
+  例: ディオール アディクトリップグロウ 001
+
+[food_drink] ブランド+商品名+容量+年(酒類)
+  例: 山崎 12年 シングルモルト 700ml
+  例: ロイズ ポテトチップチョコレート オリジナル
+
+[furniture] メーカーorデザイナー+商品名+素材+サイズ
+  例: カリモク60 Kチェア 2シーター ブラウン
+  例: アクタス ダイニングテーブル オーク無垢 W160
+
+[art] 作者+作品名+技法+サイズ+額装有無
+  例: 草間彌生 南瓜 シルクスクリーン 額装
+  例: 平山郁夫 シルクロード 版画 サインあり
+
+[pen_writing] ブランド+モデル+ニブ仕様+素材
+  例: モンブラン マイスターシュテュック 149 万年筆 14K M
+  例: パーカー デュオフォールド センテニアル ボールペン
+
+[lighter] ブランド+モデル+素材+刻印
+  例: デュポン ライニング ライター ゴールド
+  例: ジッポー 1995年製 オイルライター
+
+[military] 国・時代+種別+型番+メーカー
+  例: 米軍 M-65 ジャケット ALPHA社 Mサイズ
+  例: 旧日本軍 飯盒 オリジナル
+
+[precious_metal] 種別+純度+重量+ブランド/造幣局
+  例: 金地金 24K 100g 田中貴金属
+  例: 銀貨 999 1oz メイプルリーフ カナダ造幣局
+
+[doll] 種別+作家or店+年代+付属品
+  例: 雛人形 七段飾り 久月 昭和
+  例: リカちゃん人形 初代 タカラ 1967年
+
+[bicycle_parts] メーカー+モデル+用途+素材
+  例: シマノ デュラエース DI2 R9170 セット
+
+[kimono] 種別+素材+紋柄+寸法
+  例: 訪問着 正絹 古典柄 袷 身丈160cm
+
+[other] 種別+素材+特徴+サイズ+年代/産地
+  例: アンティーク 銅製 ランプ 大正時代
+
+【厳守ルール】
+1. **色は必ずカタカナ（グリーン、ブラウン、ブラック、ホワイト等）。漢字色（緑、茶、黒、白、赤、青）は絶対禁止**
+   理由: 漢字色は隣の単語と結合して全く違う検索（茶+緑 → 緑茶）になる事故が起きる
+2. 推測・憶測の型番やモデル名は含めない（不明なら省略）
+3. 検索ノイズになる汎用語（中古、美品、正規品、本物、新品）は基本含めない
+   例外: 古銭/切手の状態表記（美品、極美品、未使用）は含めてOK
+4. 4〜8単語が目安。多すぎると検索ヒット数が減る
+5. 一般名詞ではなく固有名詞・型番・年代・サイズなど具体的な要素優先
+
+【出力フォーマット（必須）】
+必ず最終2行をこの形式で出力:
+CATEGORY: [ジャンル名（英語ID、上記リストから1つ）]
+KEYWORD: [キーワード文字列]
+
+それ以前の観察メモは出力してもしなくてもOK。最終のCATEGORY:行とKEYWORD:行のみがシステムで使われます。
+
+【完璧な出力例】
+CATEGORY: fashion
+KEYWORD: ルイヴィトン モノグラム 二つ折り財布 ブラウン
+
+CATEGORY: car
+KEYWORD: トヨタ アルファード 2019年 ハイブリッド SR シルバー
+
+CATEGORY: coin
+KEYWORD: 明治31年 一円銀貨 大型 美品
+
+CATEGORY: card
+KEYWORD: ポケモンカード リザードン 1996年 旧裏 初版
+
+CATEGORY: tool
+KEYWORD: マキタ TD173 インパクトドライバ 18V`;
+
 // ====== AI Vision呼び出し ======
 async function analyzeImagesWithAI() {
   const provider = localStorage.getItem('rs_aiProvider') || $('aiProvider').value;
@@ -798,16 +993,18 @@ async function analyzeImagesWithAI() {
 
   setStatus('<span class="spinner"></span>AIが画像を解析中... (10〜20秒)');
   try {
-    let keyword = '';
-    if (provider === 'claude') keyword = await analyzeWithClaude(apiKey);
-    else if (provider === 'openai') keyword = await analyzeWithOpenAI(apiKey);
+    let aiRes = { keyword: '', category: '' };
+    if (provider === 'claude') aiRes = await analyzeWithClaude(apiKey);
+    else if (provider === 'openai') aiRes = await analyzeWithOpenAI(apiKey);
 
-    state.aiKeyword = keyword;
-    $('aiResultText').textContent = keyword;
-    $('finalKeyword').value = keyword;
+    state.aiKeyword = aiRes.keyword;
+    state.aiCategory = aiRes.category;
+    const catLabel = categoryLabel(aiRes.category);
+    $('aiResultText').innerHTML = (catLabel ? `<span style="background:rgba(56,189,248,0.2);color:var(--accent);padding:2px 8px;border-radius:6px;font-size:11px;margin-right:6px">${escapeHtml(catLabel)}</span>` : '') + escapeHtml(aiRes.keyword);
+    $('finalKeyword').value = aiRes.keyword;
     $('aiResultBox').classList.remove('hidden');
     $('aiHint').classList.add('hidden');
-    setStatus('AI識別完了！必要に応じてキーワードを編集してから「🔎 検索実行」を押してください', 'success');
+    setStatus(`AI識別完了！${catLabel ? `ジャンル: ${catLabel} / ` : ''}キーワードを編集してから「🔎 検索実行」を押してください`, 'success');
   } catch (err) {
     console.error(err);
     setStatus('AI解析エラー: ' + err.message, 'error');
@@ -821,56 +1018,7 @@ async function analyzeImagesWithAI() {
 
 async function analyzeWithClaude(apiKey) {
   const content = [
-    {
-      type: 'text',
-      text: `あなたは日本のフリマアプリ・オークションサイトで実取引相場を調べるリサーチャーです。画像の商品を詳細に観察し、検索でヒットしやすい最適なキーワードを生成してください。
-
-【ステップ1: 詳細な観察】(内部で実施、出力には含めない)
-- ブランドロゴ・刻印・モノグラム柄の有無
-- 商品種別（財布、バッグ、靴、家電、衣類など）
-- 形状・サイズ感（二つ折り/長財布、スニーカー/ローファー等）
-- 主たる色・素材・柄（外側の見た目）
-- 型番・モデル名・シリアル・ロゴテキスト（読み取れれば）
-- 状態（傷、汚れ、使用感）
-- その他の固有の特徴
-
-【ステップ2: モデル特定（保守的に）】
-明らかに特定できる場合のみモデル名を含めてください。
-推測や"〜の可能性が高い"レベルでは含めない（誤特定は検索結果を壊します）。
-モノグラムの種類（モノグラム/ダミエ/エピ/エクリプス等）は柄の形状から確実に判別できる場合のみ記載。
-
-【ステップ3: キーワード生成ルール（絶対に守る）】
-- 半角スペース区切りの単語列、1行のみ
-- 4〜7単語が目安（多すぎると検索でヒットしません）
-- 必ず先頭にブランド名（カタカナ）
-- 必ず含める: ブランド名 + 商品種別 + メイン色1色
-- 任意で含める: 柄、素材、サイズ
-- **色は必ずカタカナ（グリーン、ブラウン、ブラック、ホワイト、ネイビー、レッド、ピンク等）**
-- **❌ 漢字の色（緑、茶、黒、白、赤、青）は絶対に使わない**
-- 漢字色は別単語と結合して全く違う検索（例:「茶 緑」→「緑茶」）になる事故が起きるため
-- 内外の色違いも、内側は含めず外側のメイン色のみ記載
-- 推測の型番、汎用語（中古/美品/正規品など）は含めない
-
-【出力フォーマット】
-最終行に必ず以下の形式で出力してください:
-KEYWORD: [キーワード文字列]
-
-それ以外の行（観察メモなど）は出力してもしなくてもOK。最終行のKEYWORD:行のみがシステムで使われます。
-
-【出力例】
-KEYWORD: ルイヴィトン モノグラム 二つ折り財布 ブラウン
-
-KEYWORD: ルイヴィトン エピ 長財布 ブラック
-
-KEYWORD: ナイキ エアフォース1 ロー ホワイト 27cm
-
-KEYWORD: アップル iPhone 14 Pro 256GB パープル
-
-【NG例】
-❌ KEYWORD: ルイヴィトン 茶 内側緑 → 漢字色NG
-❌ KEYWORD: ルイヴィトン モノグラムエクリプス ポルトフォイユ・スレンダー 茶 → 推測モデル + 漢字色NG
-❌ KEYWORD: ルイヴィトン → 単語数不足`
-    }
+    { type: 'text', text: UNIVERSAL_AI_PROMPT }
   ];
   for (const img of state.images) {
     const base64 = img.dataUrl.split(',')[1];
@@ -897,66 +1045,37 @@ KEYWORD: アップル iPhone 14 Pro 256GB パープル
   });
   if (!res.ok) throw new Error('Claude API: ' + (await res.text()));
   const data = await res.json();
-  return extractKeyword(data.content[0].text);
+  return extractAiResult(data.content[0].text);
 }
 
-// AIの出力から KEYWORD: 行を抽出
-function extractKeyword(text) {
-  if (!text) return '';
+// AIの出力から CATEGORY: と KEYWORD: 行を抽出
+function extractAiResult(text) {
+  const result = { category: '', keyword: '' };
+  if (!text) return result;
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-  // KEYWORD: 行を末尾から探す
   for (let i = lines.length - 1; i >= 0; i--) {
-    const m = lines[i].match(/^KEYWORD\s*[:：]\s*(.+)$/i);
-    if (m) return m[1].trim();
+    if (!result.keyword) {
+      const km = lines[i].match(/^KEYWORD\s*[:：]\s*(.+)$/i);
+      if (km) result.keyword = km[1].trim();
+    }
+    if (!result.category) {
+      const cm = lines[i].match(/^CATEGORY\s*[:：]\s*([a-z_]+)/i);
+      if (cm) result.category = cm[1].trim().toLowerCase();
+    }
+    if (result.keyword && result.category) break;
   }
-  // フォーマットに従わない場合は最終行を返す
-  return lines[lines.length - 1] || text.trim();
+  if (!result.keyword) result.keyword = lines[lines.length - 1] || text.trim();
+  return result;
+}
+
+// 旧 extractKeyword 互換（外部から呼ばれる可能性）
+function extractKeyword(text) {
+  return extractAiResult(text).keyword;
 }
 
 async function analyzeWithOpenAI(apiKey) {
   const content = [
-    { type: 'text', text: `あなたは日本のフリマアプリ・オークションサイトで実取引相場を調べるリサーチャーです。画像の商品を詳細に観察し、検索でヒットしやすい最適なキーワードを生成してください。
-
-【ステップ1: 詳細な観察】(内部で実施、出力には含めない)
-- ブランドロゴ・刻印・モノグラム柄の有無
-- 商品種別（財布、バッグ、靴、家電、衣類など）
-- 形状・サイズ感
-- 主たる色・素材・柄（外側の見た目）
-- 型番・モデル名・シリアル・ロゴテキスト（読み取れれば）
-- 状態（傷、汚れ、使用感）
-
-【ステップ2: モデル特定（保守的に）】
-明らかに特定できる場合のみモデル名を含めてください。
-推測レベルでは含めない（誤特定は検索結果を壊します）。
-
-【ステップ3: キーワード生成ルール（絶対に守る）】
-- 半角スペース区切りの単語列、1行のみ
-- 4〜7単語が目安（多すぎると検索でヒットしません）
-- 必ず先頭にブランド名（カタカナ）
-- 必ず含める: ブランド名 + 商品種別 + メイン色1色
-- 任意で含める: 柄、素材、サイズ
-- **色は必ずカタカナ（グリーン、ブラウン、ブラック、ホワイト、ネイビー、レッド、ピンク等）**
-- **❌ 漢字の色（緑、茶、黒、白、赤、青）は絶対に使わない**
-- 漢字色は別単語と結合して全く違う検索（例:「茶 緑」→「緑茶」）になる事故が起きるため
-- 内外の色違いも、内側は含めず外側のメイン色のみ記載
-- 推測の型番、汎用語（中古/美品/正規品など）は含めない
-
-【出力フォーマット】
-最終行に必ず以下の形式で出力してください:
-KEYWORD: [キーワード文字列]
-
-【出力例】
-KEYWORD: ルイヴィトン モノグラム 二つ折り財布 ブラウン
-
-KEYWORD: ルイヴィトン エピ 長財布 ブラック
-
-KEYWORD: ナイキ エアフォース1 ロー ホワイト 27cm
-
-KEYWORD: アップル iPhone 14 Pro 256GB パープル
-
-【NG例】
-❌ KEYWORD: ルイヴィトン 茶 内側緑 → 漢字色NG
-❌ KEYWORD: ルイヴィトン モノグラムエクリプス ポルトフォイユ・スレンダー 茶 → 推測モデル + 漢字色NG` }
+    { type: 'text', text: UNIVERSAL_AI_PROMPT }
   ];
   for (const img of state.images) {
     content.push({ type: 'image_url', image_url: { url: img.dataUrl } });
@@ -972,7 +1091,22 @@ KEYWORD: アップル iPhone 14 Pro 256GB パープル
   });
   if (!res.ok) throw new Error('OpenAI API: ' + (await res.text()));
   const data = await res.json();
-  return extractKeyword(data.choices[0].message.content);
+  return extractAiResult(data.choices[0].message.content);
+}
+
+// カテゴリIDを表示用ラベルに変換
+function categoryLabel(cat) {
+  return {
+    fashion: 'ファッション', watch: '時計', jewelry: 'ジュエリー',
+    electronics: '家電', camera: 'カメラ', car: '車', bike: 'バイク',
+    coin: '古銭・貨幣', stamp: '切手・テレカ', antique: 'アンティーク・骨董',
+    toy: 'おもちゃ・フィギュア', game: 'ゲーム', card: 'トレカ',
+    book: '書籍', media: 'CD/DVD', instrument: '楽器', sports: 'スポーツ',
+    tool: '工具', cosmetic: 'コスメ', food_drink: '食品・酒',
+    furniture: '家具', art: 'アート', pen_writing: '筆記具',
+    lighter: 'ライター', military: 'ミリタリー', precious_metal: '貴金属',
+    doll: '人形', bicycle_parts: '自転車', kimono: '着物', other: 'その他'
+  }[cat] || '';
 }
 
 // 検索の二重実行防止フラグ
@@ -1023,7 +1157,7 @@ async function searchAllMarkets() {
   const promises = markets.map(async (market) => {
     setProgressItem(market, 'searching');
     try {
-      const res = await fetch(`${serverUrl}/api/search?market=${market}&q=${encodeURIComponent(keyword)}&exclude=${encodeURIComponent(exclude)}&condition=${condition}`);
+      const res = await fetch(`${serverUrl}/api/search?market=${market}&q=${encodeURIComponent(keyword)}&exclude=${encodeURIComponent(exclude)}&condition=${condition}&category=${encodeURIComponent(state.aiCategory || '')}`);
       const data = res.ok ? await res.json() : { error: res.statusText, items: [] };
       const items = data.items || [];
       perMarket[market] = { count: items.length, error: data.error };

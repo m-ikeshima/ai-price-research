@@ -81,6 +81,179 @@ const BRAND_ALIASES = {
   'バーバリー': ['バーバリー', 'burberry'],
   'ボッテガヴェネタ': ['ボッテガヴェネタ', 'ボッテガ・ヴェネタ', 'ボッテガ', 'bottega veneta', 'bottegaveneta', 'bottega'],
   'サンローラン': ['サンローラン', 'saint laurent', 'ysl'],
+  'ベルルッティ': ['ベルルッティ', 'berluti'],
+  'トッズ': ['トッズ', 'tod\'s', 'tods'],
+  'ロエベ': ['ロエベ', 'loewe'],
+  'バレンチノ': ['バレンチノ', 'バレンチノ・ガラヴァーニ', 'valentino'],
+  'ジバンシイ': ['ジバンシィ', 'ジバンシー', 'ジバンシイ', 'givenchy'],
+  'マイケルコース': ['マイケルコース', 'マイケル・コース', 'michael kors'],
+  'ティファニー': ['ティファニー', 'tiffany'],
+  'カルティエ': ['カルティエ', 'cartier'],
+  'ブルガリ': ['ブルガリ', 'bvlgari', 'bulgari'],
+  'グランドセイコー': ['グランドセイコー', 'grand seiko', 'gs'],
+  'タグホイヤー': ['タグホイヤー', 'タグ・ホイヤー', 'tag heuer'],
+  'パテックフィリップ': ['パテックフィリップ', 'patek philippe'],
+  'オーデマピゲ': ['オーデマピゲ', 'audemars piguet', 'ap'],
+  'ヴァシュロンコンスタンタン': ['ヴァシュロンコンスタンタン', 'vacheron constantin'],
+  'ガーミン': ['ガーミン', 'garmin'],
+  'スント': ['スント', 'suunto'],
+  'ヤマハ': ['ヤマハ', 'yamaha'],
+  'ローランド': ['ローランド', 'roland'],
+  'コルグ': ['コルグ', 'korg'],
+  'マーシャル': ['マーシャル', 'marshall'],
+  'フェンダー': ['フェンダー', 'fender'],
+  'ギブソン': ['ギブソン', 'gibson'],
+  'ボーズ': ['ボーズ', 'bose'],
+  'jbl': ['jbl', 'ジェービーエル'],
+  'ゼンハイザー': ['ゼンハイザー', 'sennheiser'],
+  'シュアー': ['シュアー', 'shure'],
+  'ベイリス': ['ベイリス', 'baileys'],
+  'ダイソン': ['ダイソン', 'dyson'],
+  'バルミューダ': ['バルミューダ', 'balmuda'],
+  'デロンギ': ['デロンギ', 'delonghi'],
+  'ネスプレッソ': ['ネスプレッソ', 'nespresso'],
+  // ===== 自動車メーカー =====
+  'トヨタ': ['トヨタ', 'toyota', 'lexus', 'レクサス'],
+  'ホンダ': ['ホンダ', 'honda', 'acura', 'アキュラ'],
+  '日産': ['日産', 'ニッサン', 'nissan', 'infiniti', 'インフィニティ'],
+  'マツダ': ['マツダ', 'mazda'],
+  'スバル': ['スバル', 'subaru'],
+  'スズキ': ['スズキ', 'suzuki'],
+  'ダイハツ': ['ダイハツ', 'daihatsu'],
+  'いすゞ': ['いすゞ', 'isuzu'],
+  'ミツビシ': ['ミツビシ', '三菱', 'mitsubishi'],
+  'BMW': ['bmw', 'ビーエムダブリュー'],
+  'メルセデス': ['メルセデス', 'ベンツ', 'mercedes', 'mercedes-benz', 'benz'],
+  'アウディ': ['アウディ', 'audi'],
+  'フォルクスワーゲン': ['フォルクスワーゲン', 'volkswagen', 'vw'],
+  'ポルシェ': ['ポルシェ', 'porsche'],
+  'フェラーリ': ['フェラーリ', 'ferrari'],
+  'ランボルギーニ': ['ランボルギーニ', 'lamborghini'],
+  'マセラティ': ['マセラティ', 'maserati'],
+  'アストンマーチン': ['アストンマーチン', 'aston martin'],
+  'ベントレー': ['ベントレー', 'bentley'],
+  'ロールスロイス': ['ロールスロイス', 'rolls-royce', 'rolls royce'],
+  'ジャガー': ['ジャガー', 'jaguar'],
+  'ランドローバー': ['ランドローバー', 'land rover', 'レンジローバー', 'range rover'],
+  'ボルボ': ['ボルボ', 'volvo'],
+  'プジョー': ['プジョー', 'peugeot'],
+  'シトロエン': ['シトロエン', 'citroen'],
+  'ルノー': ['ルノー', 'renault'],
+  'フィアット': ['フィアット', 'fiat'],
+  'アルファロメオ': ['アルファロメオ', 'alfa romeo', 'alfaromeo'],
+  'テスラ': ['テスラ', 'tesla'],
+  'フォード': ['フォード', 'ford'],
+  'シボレー': ['シボレー', 'chevrolet'],
+  'キャデラック': ['キャデラック', 'cadillac'],
+  // ===== バイクメーカー =====
+  'カワサキ': ['カワサキ', 'kawasaki'],
+  'ハーレーダビッドソン': ['ハーレー', 'ハーレーダビッドソン', 'harley', 'harley-davidson', 'harley davidson'],
+  'ドゥカティ': ['ドゥカティ', 'ducati'],
+  'トライアンフ': ['トライアンフ', 'triumph'],
+  'KTM': ['ktm', 'ケーティーエム'],
+  'ベスパ': ['ベスパ', 'vespa'],
+  // ===== 古銭・コレクター系（時代名） =====
+  '明治': ['明治', 'meiji'],
+  '大正': ['大正', 'taisho'],
+  '昭和': ['昭和', 'showa'],
+  '平成': ['平成', 'heisei'],
+  '令和': ['令和', 'reiwa'],
+  '一円銀貨': ['一円銀貨', '1円銀貨', '銀貨'],
+  '五十銭': ['五十銭', '50銭'],
+  '十円玉': ['十円', '10円玉'],
+  // ===== カメラ =====
+  'ライカ': ['ライカ', 'leica'],
+  'ハッセルブラッド': ['ハッセルブラッド', 'hasselblad'],
+  'マミヤ': ['マミヤ', 'mamiya'],
+  'ペンタックス': ['ペンタックス', 'pentax'],
+  'シグマ': ['シグマ', 'sigma'],
+  'タムロン': ['タムロン', 'tamron'],
+  'ゴープロ': ['ゴープロ', 'gopro'],
+  'DJI': ['dji', 'ディージェイアイ'],
+  // ===== トレカ =====
+  'ポケモン': ['ポケモン', 'ポケモンカード', 'pokemon'],
+  '遊戯王': ['遊戯王', 'yu-gi-oh', 'yugioh'],
+  'マジック': ['マジック', 'mtg', 'magic the gathering'],
+  'デュエルマスターズ': ['デュエルマスターズ', 'デュエマ'],
+  'ワンピース': ['ワンピース', 'one piece', 'onepiece'],
+  // ===== ゲーム =====
+  'プレイステーション': ['プレイステーション', 'プレステ', 'playstation', 'ps5', 'ps4', 'ps3', 'ps2', 'psp', 'psv'],
+  'エックスボックス': ['エックスボックス', 'xbox'],
+  // ===== 楽器 =====
+  'スタインウェイ': ['スタインウェイ', 'steinway'],
+  'カワイ': ['カワイ', 'kawai'],
+  'ベーゼンドルファー': ['ベーゼンドルファー', 'bosendorfer'],
+  'マーチン': ['マーチン', 'マーティン', 'martin'],
+  'テイラー': ['テイラー', 'taylor'],
+  'リッケンバッカー': ['リッケンバッカー', 'rickenbacker'],
+  // ===== 工具 =====
+  'マキタ': ['マキタ', 'makita'],
+  'ハイコーキ': ['ハイコーキ', 'hikoki', 'hitachi koki'],
+  'ボッシュ': ['ボッシュ', 'bosch'],
+  'ミルウォーキー': ['ミルウォーキー', 'milwaukee'],
+  'デウォルト': ['デウォルト', 'dewalt'],
+  'ヒルティ': ['ヒルティ', 'hilti'],
+  'リョービ': ['リョービ', 'ryobi'],
+  // ===== コスメ =====
+  'sk2': ['sk2', 'sk-ii', 'エスケーツー'],
+  'ランコム': ['ランコム', 'lancome'],
+  'エスティローダー': ['エスティローダー', 'estee lauder'],
+  'ヘレナルビンスタイン': ['ヘレナルビンスタイン', 'helena rubinstein'],
+  'クレドポーボーテ': ['クレドポーボーテ', 'cle de peau'],
+  'シスレー': ['シスレー', 'sisley'],
+  'ラプレリー': ['ラプレリー', 'la prairie'],
+  // ===== 酒類 =====
+  '山崎': ['山崎', 'yamazaki'],
+  '響': ['響', 'hibiki'],
+  '白州': ['白州', 'hakushu'],
+  '余市': ['余市', 'yoichi'],
+  '宮城峡': ['宮城峡', 'miyagikyo'],
+  'マッカラン': ['マッカラン', 'macallan'],
+  'グレンフィディック': ['グレンフィディック', 'glenfiddich'],
+  'ヘネシー': ['ヘネシー', 'hennessy'],
+  'レミーマルタン': ['レミーマルタン', 'remy martin'],
+  'ドンペリ': ['ドンペリ', 'ドンペリニヨン', 'dom perignon'],
+  // ===== 万年筆・筆記具 =====
+  'モンブラン': ['モンブラン', 'montblanc'],
+  'パーカー': ['パーカー', 'parker'],
+  'ペリカン': ['ペリカン', 'pelikan'],
+  'ウォーターマン': ['ウォーターマン', 'waterman'],
+  'ラミー': ['ラミー', 'lamy'],
+  'カランダッシュ': ['カランダッシュ', 'caran d\'ache'],
+  'クロス': ['クロス', 'cross'],
+  // ===== ライター =====
+  'デュポン': ['デュポン', 'dupont', 's.t.dupont'],
+  'ジッポー': ['ジッポー', 'zippo'],
+  // ===== 家具・インテリア =====
+  'カリモク': ['カリモク', 'karimoku'],
+  'マルニ': ['マルニ木工', 'maruni'],
+  'アクタス': ['アクタス', 'actus'],
+  'コンランショップ': ['コンランショップ', 'conran shop'],
+  'イデー': ['イデー', 'idee'],
+  'ボーコンセプト': ['ボーコンセプト', 'boconcept'],
+  'ハーマンミラー': ['ハーマンミラー', 'herman miller'],
+  'ヴィトラ': ['ヴィトラ', 'vitra'],
+  'カッシーナ': ['カッシーナ', 'cassina'],
+  // ===== 着物 =====
+  '加賀友禅': ['加賀友禅'],
+  '京友禅': ['京友禅'],
+  '大島紬': ['大島紬'],
+  '結城紬': ['結城紬'],
+  // ===== 自転車 =====
+  'シマノ': ['シマノ', 'shimano'],
+  'カンパニョーロ': ['カンパニョーロ', 'campagnolo'],
+  'スラム': ['スラム', 'sram'],
+  'トレック': ['トレック', 'trek'],
+  'スペシャライズド': ['スペシャライズド', 'specialized'],
+  'キャノンデール': ['キャノンデール', 'cannondale'],
+  'ジャイアント': ['ジャイアント', 'giant'],
+  'ピナレロ': ['ピナレロ', 'pinarello'],
+  'コルナゴ': ['コルナゴ', 'colnago'],
+  'ビアンキ': ['ビアンキ', 'bianchi'],
+  // ===== 貴金属 =====
+  '金地金': ['金地金', 'ゴールドバー', 'gold bar'],
+  '銀地金': ['銀地金', 'シルバーバー', 'silver bar'],
+  '田中貴金属': ['田中貴金属', 'tanaka'],
   'ナイキ': ['ナイキ', 'nike'],
   'アディダス': ['アディダス', 'adidas'],
   'プーマ': ['プーマ', 'puma'],
@@ -118,27 +291,74 @@ function aliasesFor(word) {
   return [word];
 }
 
-// 関連性フィルタ: タイトルにブランド名（または最初の2単語のうち1つ）が含まれるかチェック
-// 重要: フィルタで件数が極端に減る（>90%）場合は元の配列を返す（フィルタオフ）
-function relevanceFilter(items, query) {
+// カテゴリ別フィルタ設定
+// strict: 厳しめ（ブランド辞書ベース）
+// loose: 緩め（多語マッチ、2語以上ヒットでOK）
+// minimal: 最小限（1語ヒットでOK）
+const CATEGORY_FILTER_MODE = {
+  fashion: 'strict', watch: 'strict', jewelry: 'strict',
+  electronics: 'strict', camera: 'strict', cosmetic: 'strict',
+  instrument: 'strict', tool: 'strict',
+  // 緩めにすべきカテゴリ
+  car: 'loose', bike: 'loose', game: 'loose', toy: 'loose',
+  card: 'loose', book: 'loose', media: 'loose', sports: 'loose',
+  pen_writing: 'strict', lighter: 'strict', furniture: 'strict',
+  food_drink: 'loose', precious_metal: 'loose',
+  // 最小限フィルタにすべきカテゴリ
+  coin: 'minimal', stamp: 'minimal', antique: 'minimal',
+  art: 'minimal', military: 'minimal', doll: 'minimal',
+  bicycle_parts: 'loose', kimono: 'minimal', other: 'minimal',
+};
+
+// ノイズ語（フィルタ判定から除外する）
+const STOPWORDS = new Set([
+  '中古', '美品', '極美品', '新品', '未使用', '正規品', '本物', '純正',
+  '送料無料', '値下げ', '即決', '訳あり', 'まとめ売り',
+  'used', 'new', 'sale', 'set'
+]);
+
+// 関連性フィルタ: カテゴリ別に動的に調整
+function relevanceFilter(items, query, category) {
   if (!query || items.length === 0) return items;
-  const words = query.trim().split(/[\s　]+/).filter(w => w.length >= 2);
+  const words = query.trim().split(/[\s　]+/)
+    .filter(w => w.length >= 2 && !STOPWORDS.has(w.toLowerCase()));
   if (words.length === 0) return items;
 
-  // 最初の2単語を候補にしてエイリアスを集める
-  const candidateAliases = new Set();
-  for (let i = 0; i < Math.min(2, words.length); i++) {
-    for (const a of aliasesFor(words[i])) {
-      candidateAliases.add(a.toLowerCase());
-    }
-  }
+  const mode = CATEGORY_FILTER_MODE[category] || 'loose';
+  console.log(`  関連性フィルタ: カテゴリ="${category||'未指定'}" mode=${mode}`);
+
+  // 全キーワードのエイリアスを集める
+  const wordAliases = words.map(w => ({
+    word: w.toLowerCase(),
+    aliases: aliasesFor(w).map(a => a.toLowerCase())
+  }));
+
+  const titleMatch = (title, alias) => title.includes(alias);
 
   const filtered = items.filter(it => {
     const title = (it.title || '').toLowerCase();
-    for (const alias of candidateAliases) {
-      if (title.includes(alias)) return true;
+    if (mode === 'strict') {
+      // 1単語目（ブランド）が必ず含まれる
+      const brand = wordAliases[0];
+      return brand.aliases.some(a => titleMatch(title, a));
+    } else if (mode === 'loose') {
+      // キーワードのうち2つ以上が含まれる（少なければ1つ）
+      const need = Math.min(2, words.length);
+      let hit = 0;
+      for (const w of wordAliases) {
+        if (w.aliases.some(a => titleMatch(title, a))) {
+          hit++;
+          if (hit >= need) return true;
+        }
+      }
+      return false;
+    } else {
+      // minimal: 1つでも含まれていればOK
+      for (const w of wordAliases) {
+        if (w.aliases.some(a => titleMatch(title, a))) return true;
+      }
+      return false;
     }
-    return false;
   });
 
   // フィルタ後に件数が0、または極端に減った（10%未満になった）場合、フィルタを無効化
@@ -150,7 +370,34 @@ function relevanceFilter(items, query) {
     console.log(`  フィルタ無効化: 件数が極端に減少 (${items.length}→${filtered.length})`);
     return items;
   }
+  console.log(`  関連性フィルタ結果: ${items.length} → ${filtered.length} 件`);
   return filtered;
+}
+
+// 画像URLを多様な属性から抽出（遅延読み込み対応＋プレースホルダ除外）
+function extractImageUrl($el) {
+  if (!$el || $el.length === 0) return null;
+  const imgEl = $el.is('img') ? $el : $el.find('img').first();
+  if (imgEl.length === 0) return null;
+  // 試す属性（遅延読み込み系を優先）
+  const attrs = [
+    'data-original', 'data-lazy-src', 'data-lazy', 'data-src',
+    'data-source', 'data-load-src', 'data-actualsrc', 'data-image', 'srcset', 'src'
+  ];
+  for (const a of attrs) {
+    let v = imgEl.attr(a);
+    if (!v) continue;
+    // srcset 形式は最初のURLだけ取る
+    if (a === 'srcset' && v.includes(' ')) v = v.split(',')[0].trim().split(' ')[0];
+    // データURIや空白除外
+    if (/^data:/i.test(v)) continue;
+    // 1x1透明画像などのプレースホルダを除外
+    if (/(blank|spacer|placeholder|loading|1x1|transparent|noimage|no_image)/i.test(v)) continue;
+    // 相対パス対応
+    if (v.startsWith('//')) v = 'https:' + v;
+    if (/^https?:\/\//i.test(v)) return v;
+  }
+  return null;
 }
 
 async function fetchHtml(url, opts = {}) {
@@ -179,41 +426,82 @@ async function searchYahooAuction(q, exclude) {
   const $ = cheerio.load(html);
   const items = [];
 
-  // 結果は li.Product または div.Product 構造
-  $('li.Product, .Product').each((_, el) => {
+  // 戦略1: 商品コンテナを多様なセレクタで探す
+  const selectors = [
+    'li.Product',
+    'div.Product',
+    '.Product',
+    'li.Tile',
+    '.Tile',
+    '[class*="Result__item"]',
+    '[class*="Product"][class*="item"]',
+    'li[class*="Product"]',
+    'div[class*="Product"]',
+  ];
+  let $products = $();
+  for (const sel of selectors) {
+    $products = $(sel);
+    if ($products.length > 0) {
+      console.log(`  Yahoo Auction: matched ${$products.length} with "${sel}"`);
+      break;
+    }
+  }
+
+  // 戦略2: フォールバック - /auction/ リンクを直接探す
+  if ($products.length === 0) {
+    console.log('  Yahoo Auction: fallback to /auction/ link extraction');
+    $('a[href*="/auction/"]').each((_, el) => {
+      const $a = $(el);
+      const $row = $a.closest('li, div');
+      if ($row.length === 0) return;
+      let href = $a.attr('href') || '';
+      if (href.startsWith('/')) href = 'https://auctions.yahoo.co.jp' + href;
+      const title = ($a.text() || $a.attr('title') || $a.find('img').attr('alt') || '').trim();
+      const priceText = $row.text().match(/¥?\s*([\d,]+)\s*円/)?.[0] || $row.find('[class*=rice]').first().text();
+      const price = parsePriceJP(priceText);
+      const image = extractImageUrl($row);
+      if (title && price && title.length > 3) {
+        items.push({ title, price, url: href, image, sold: true, condition: null, sold_date: null });
+      }
+    });
+    return dedupByUrl(items).slice(0, MAX_ITEMS);
+  }
+
+  $products.each((_, el) => {
     const $el = $(el);
-    const titleEl = $el.find('.Product__title a, a.Product__titleLink, .Product__titleLink').first();
-    let title = titleEl.text().trim();
+    const titleEl = $el.find('a[href*="/auction/"], .Product__title a, .Product__titleLink, [class*="title"] a').first();
+    let title = (titleEl.text() || titleEl.attr('title') || '').trim();
     let href = titleEl.attr('href') || '';
     if (href && href.startsWith('/')) href = 'https://auctions.yahoo.co.jp' + href;
 
-    // 価格パターン複数対応
     const priceText =
       $el.find('.Product__priceValue').first().text() ||
       $el.find('.Product__price').first().text() ||
-      $el.find('[class*=price]').first().text();
+      $el.find('[class*=price]').first().text() ||
+      $el.text().match(/¥?\s*([\d,]+)\s*円/)?.[0];
     const price = parsePriceJP(priceText);
 
-    const date = $el.find('.Product__time, .Product__date').first().text().trim();
-
-    // サムネイル画像
-    const imgEl = $el.find('img').first();
-    const image = imgEl.attr('src') || imgEl.attr('data-src') || null;
+    const date = $el.find('.Product__time, .Product__date, [class*="time"]').first().text().trim();
+    const image = extractImageUrl($el);
 
     if (title && price) {
       items.push({
-        title,
-        price,
-        url: href,
-        image,
-        sold_date: date || null,
-        sold: true,
-        condition: null,
+        title, price, url: href, image,
+        sold_date: date || null, sold: true, condition: null,
       });
     }
   });
 
-  return items.slice(0, MAX_ITEMS);
+  return dedupByUrl(items).slice(0, MAX_ITEMS);
+}
+
+function dedupByUrl(items) {
+  const seen = new Set();
+  return items.filter(it => {
+    if (!it.url || seen.has(it.url)) return false;
+    seen.add(it.url);
+    return true;
+  });
 }
 
 // ====== Yahoo!フリマ (PayPayフリマ) ======
@@ -325,7 +613,7 @@ async function searchMercari(q, exclude) {
       const href = 'https://jp.mercari.com' + $el.attr('href');
       const img = $el.find('img').first();
       const title = $el.attr('aria-label') || img.attr('alt') || '';
-      const image = img.attr('src') || img.attr('data-src') || null;
+      const image = extractImageUrl($el);
       const priceText = $el.find('[class*=price]').first().text() ||
                         $el.text().match(/¥[\d,]+/)?.[0] || '';
       const price = parsePriceJP(priceText);
@@ -360,8 +648,7 @@ async function searchRakuma(q, exclude) {
                    a.attr('title') || '').trim();
     const priceText = $el.find('.item-price, .item-box__item-price, [class*=price]').first().text();
     const price = parsePriceJP(priceText);
-    const imgEl = $el.find('img').first();
-    const image = imgEl.attr('src') || imgEl.attr('data-src') || imgEl.attr('data-original') || null;
+    const image = extractImageUrl($el);
 
     if (title && price) {
       items.push({
@@ -392,7 +679,7 @@ async function searchEbay(q, exclude) {
     // USDをそのまま入れず、概算円換算 (1USD = 155円固定の目安)
     const priceJpy = Math.round(parseFloat(priceMatch[1]) * 155);
     const cond = $el.find('.SECONDARY_INFO').first().text().trim();
-    const image = $el.find('.s-item__image-img, img').first().attr('src') || null;
+    const image = extractImageUrl($el);
     items.push({
       title, price: priceJpy, url: href, image, sold: true,
       condition: cond, note: `元値: ${priceText.trim()}`,
@@ -404,33 +691,68 @@ async function searchEbay(q, exclude) {
 
 // ====== 楽天市場 (現行販売価格) ======
 async function searchRakutenIchiba(q, exclude) {
+  // 楽天は公式APIは使えるがアプリID必要なので、HTMLスクレイピング
   const url = `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(q)}/`;
   const html = await fetchHtml(url);
   const $ = cheerio.load(html);
   const items = [];
 
-  // 楽天市場の商品リスト構造
-  $('.searchresultitem, [class*="item-grid"], .dui-card').each((_, el) => {
-    const $el = $(el);
-    const titleEl = $el.find('h2 a, .title a, a[title], .content--3xN3').first();
-    const title = (titleEl.text() || titleEl.attr('title') || '').trim();
-    let href = titleEl.attr('href') || $el.find('a').first().attr('href') || '';
-    const priceText = $el.find('.price, [class*="price"]').first().text();
-    const price = parsePriceJP(priceText);
-    const imgEl = $el.find('img').first();
-    const image = imgEl.attr('src') || imgEl.attr('data-src') || null;
+  // 戦略1: 商品コンテナ - 楽天の多様なクラス名に対応
+  const containers = [
+    '.searchresultitem',
+    '[class*="item-grid"]',
+    '.dui-card',
+    '[data-testid="search-result-item"]',
+    'div.product',
+    '.item',
+  ];
+  let $items = $();
+  for (const sel of containers) {
+    $items = $(sel);
+    if ($items.length > 0) {
+      console.log(`  Rakuten: matched ${$items.length} with "${sel}"`);
+      break;
+    }
+  }
 
-    if (title && price) {
+  $items.each((_, el) => {
+    const $el = $(el);
+    const a = $el.find('a[href*="item.rakuten"], a[href*="rakuten.co.jp"], a[href*="//item.rakuten"]').first();
+    const titleA = a.length ? a : $el.find('a').first();
+    const title = (titleA.text() || titleA.attr('title') || $el.find('img').attr('alt') || '').trim();
+    let href = titleA.attr('href') || '';
+    const priceText = $el.find('[class*="price"], .price, [class*="Price"]').first().text() ||
+                      $el.text().match(/¥?\s*([\d,]+)\s*円/)?.[0];
+    const price = parsePriceJP(priceText);
+    const image = extractImageUrl($el);
+
+    if (title && price && href) {
       items.push({
-        title, price, url: href, image,
-        sold: false, // 楽天市場は現行販売価格
-        condition: null, sold_date: null,
-        note: '現在販売中',
+        title: title.slice(0, 120), price, url: href, image,
+        sold: false, condition: null, sold_date: null, note: '現在販売中',
       });
     }
   });
 
-  return items.slice(0, MAX_ITEMS);
+  // 戦略2: フォールバック - item.rakuten.co.jp へのリンクを直接拾う
+  if (items.length === 0) {
+    console.log('  Rakuten: fallback to direct link extraction');
+    $('a[href*="item.rakuten"]').each((_, el) => {
+      const $a = $(el);
+      const $row = $a.closest('div, li');
+      const href = $a.attr('href') || '';
+      const title = ($a.text() || $a.attr('title') || $a.find('img').attr('alt') || '').trim();
+      if (!title || title.length < 5) return;
+      const priceText = $row.text().match(/¥?\s*([\d,]+)\s*円/)?.[0];
+      const price = parsePriceJP(priceText);
+      const image = extractImageUrl($row);
+      if (title && price) {
+        items.push({ title: title.slice(0, 120), price, url: href, image, sold: false, condition: null, sold_date: null, note: '現在販売中' });
+      }
+    });
+  }
+
+  return dedupByUrl(items).slice(0, MAX_ITEMS);
 }
 
 // ====== Yahoo!ショッピング (現行販売価格) ======
@@ -440,54 +762,63 @@ async function searchYahooShopping(q, exclude) {
   const $ = cheerio.load(html);
   const items = [];
 
-  // 商品アイテム抽出
-  $('[class*="LoopList"] li, [class*="SearchResultItem"], li.LoopList__item').each((_, el) => {
-    const $el = $(el);
-    const titleEl = $el.find('a[href*="/products/"], a[href*="/store/"], .Title a, h3 a').first();
-    let title = (titleEl.text() || titleEl.attr('title') || $el.find('h3').first().text() || '').trim();
-    let href = titleEl.attr('href') || $el.find('a').first().attr('href') || '';
-    const priceText = $el.find('[class*="Price"], [class*="price"]').first().text();
-    const price = parsePriceJP(priceText);
-    const imgEl = $el.find('img').first();
-    const image = imgEl.attr('src') || imgEl.attr('data-src') || imgEl.attr('data-original') || null;
+  // 戦略1: 商品コンテナを多様に探す
+  const containers = [
+    'li.LoopList__item',
+    '[class*="LoopList"] li',
+    '[class*="SearchResultItem"]',
+    '[class*="ProductItem"]',
+    '[class*="ResultItem"]',
+    '[data-cy*="item"]',
+    'li[class*="item"]',
+  ];
+  let $items = $();
+  for (const sel of containers) {
+    $items = $(sel);
+    if ($items.length > 0) {
+      console.log(`  Yahoo Shopping: matched ${$items.length} with "${sel}"`);
+      break;
+    }
+  }
 
-    if (title && price) {
+  $items.each((_, el) => {
+    const $el = $(el);
+    const a = $el.find('a[href*="/products/"], a[href*="store.shopping.yahoo"], a[href*="//store.shopping.yahoo"], a[href*="/store/"]').first();
+    const titleA = a.length ? a : $el.find('a').first();
+    const title = (titleA.text() || titleA.attr('title') || $el.find('h3').first().text() || $el.find('img').attr('alt') || '').trim();
+    let href = titleA.attr('href') || '';
+    const priceText = $el.find('[class*="Price"], [class*="price"]').first().text() ||
+                      $el.text().match(/¥?\s*([\d,]+)\s*円?/)?.[0];
+    const price = parsePriceJP(priceText);
+    const image = extractImageUrl($el);
+
+    if (title && price && href && title.length > 3) {
       items.push({
-        title, price, url: href, image,
-        sold: false, // ヤフショは現行販売価格
-        condition: null, sold_date: null,
-        note: '現在販売中',
+        title: title.slice(0, 120), price, url: href, image,
+        sold: false, condition: null, sold_date: null, note: '現在販売中',
       });
     }
   });
 
-  // フォールバック: a要素から拾う
+  // 戦略2: フォールバック - 商品リンクを直接拾う
   if (items.length === 0) {
-    $('a[href*="/products/"], a[href*="/store/"]').each((_, el) => {
-      const $el = $(el);
-      const href = $el.attr('href') || '';
-      const title = $el.attr('title') || $el.text().trim().slice(0, 80);
-      const imgEl = $el.find('img').first();
-      const image = imgEl.attr('src') || imgEl.attr('data-src') || null;
-      // 親要素から価格を探す
-      const $parent = $el.closest('li, div');
-      const priceText = $parent.find('[class*="price"]').first().text() ||
-                        $parent.text().match(/¥[\d,]+/)?.[0] || '';
+    console.log('  Yahoo Shopping: fallback to direct link extraction');
+    $('a[href*="store.shopping.yahoo"], a[href*="//store.shopping.yahoo"]').each((_, el) => {
+      const $a = $(el);
+      const $row = $a.closest('li, div');
+      const href = $a.attr('href') || '';
+      const title = ($a.text() || $a.attr('title') || $a.find('img').attr('alt') || '').trim();
+      if (!title || title.length < 5) return;
+      const priceText = $row.text().match(/¥?\s*([\d,]+)\s*円?/)?.[0];
       const price = parsePriceJP(priceText);
+      const image = extractImageUrl($row);
       if (title && price) {
-        items.push({ title, price, url: href, image, sold: false, condition: null, sold_date: null, note: '現在販売中' });
+        items.push({ title: title.slice(0, 120), price, url: href, image, sold: false, condition: null, sold_date: null, note: '現在販売中' });
       }
     });
   }
 
-  // 重複削除
-  const seen = new Set();
-  const dedup = items.filter(it => {
-    if (seen.has(it.url)) return false;
-    seen.add(it.url);
-    return true;
-  });
-  return dedup.slice(0, MAX_ITEMS);
+  return dedupByUrl(items).slice(0, MAX_ITEMS);
 }
 
 // ====== TikTok Shop (実験的) ======
@@ -531,21 +862,17 @@ const handlers = {
 };
 
 app.get('/api/search', async (req, res) => {
-  const { market, q, exclude } = req.query;
+  const { market, q, exclude, category } = req.query;
   if (!market || !q) return res.status(400).json({ error: 'market と q は必須です' });
   const handler = handlers[market];
   if (!handler) return res.status(400).json({ error: `未対応のマーケット: ${market}` });
 
-  console.log(`[${new Date().toISOString()}] ${market} を検索: "${q}"`);
+  console.log(`[${new Date().toISOString()}] ${market} を検索: "${q}" カテゴリ=${category || '未指定'}`);
   try {
     let items = await handler(q, exclude);
     items = applyExclude(items, exclude);
-    const beforeCount = items.length;
-    items = relevanceFilter(items, q);
-    if (beforeCount !== items.length) {
-      console.log(`  関連性フィルタ: ${beforeCount} → ${items.length} 件`);
-    }
-    res.json({ market, query: q, count: items.length, items });
+    items = relevanceFilter(items, q, category);
+    res.json({ market, query: q, category, count: items.length, items });
   } catch (err) {
     console.error(`[${market}] エラー:`, err.message);
     res.status(500).json({ market, error: err.message, items: [] });
