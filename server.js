@@ -49,7 +49,7 @@ const COMMON_HEADERS = {
   'Accept-Language': 'ja-JP,ja;q=0.9,en;q=0.8',
 };
 
-const MAX_ITEMS = 30;
+const MAX_ITEMS = 50; // メルカリは ×2 で最大100件
 
 // ====== ユーティリティ ======
 function parsePriceJP(text) {
@@ -557,79 +557,134 @@ async function searchPayPayFlea(q, exclude) {
   return dedup.slice(0, MAX_ITEMS);
 }
 
-// ====== メルカリ ======
+// ====== メルカリ（最重要指標：強化版） ======
 async function searchMercari(q, exclude) {
-  // メルカリは内部APIを叩く。ただし匿名アクセスはレート制限あり。
-  // 公開検索ページのHTMLからJSONを抽出する方式を採用。
-  const url = `https://jp.mercari.com/search?keyword=${encodeURIComponent(q)}&status=sold_out&order=desc&sort=created_time`;
-  const html = await fetchHtml(url, {
-    headers: {
-      'Referer': 'https://jp.mercari.com/',
-    }
-  });
-  const $ = cheerio.load(html);
-  const items = [];
+  // 戦略: 売却済み + 出品中の両方を取得して、買取査定に必要な「実売価格」と「現行販売価格」の両方を提供
+  const headers = {
+    'Referer': 'https://jp.mercari.com/',
+    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'ja-JP,ja;q=0.9,en;q=0.8',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Dest': 'document',
+  };
 
-  // __NEXT_DATA__ から抽出
-  const next = $('#__NEXT_DATA__').html();
-  if (next) {
-    try {
-      const data = JSON.parse(next);
-      const walk = (obj) => {
-        if (!obj || typeof obj !== 'object') return;
-        if (Array.isArray(obj)) { obj.forEach(walk); return; }
-        if (obj.id && obj.name && obj.price !== undefined && (obj.status === 'sold_out' || obj.status === 'trading' || obj.itemConditionId)) {
-          // サムネイル抽出
-          let image = null;
-          if (Array.isArray(obj.thumbnails) && obj.thumbnails.length > 0) {
-            image = typeof obj.thumbnails[0] === 'string' ? obj.thumbnails[0] : (obj.thumbnails[0].url || null);
-          } else if (obj.thumbnail) {
-            image = typeof obj.thumbnail === 'string' ? obj.thumbnail : (obj.thumbnail.url || null);
-          } else if (obj.imageUrl) {
-            image = obj.imageUrl;
-          } else if (Array.isArray(obj.photos) && obj.photos.length > 0) {
-            image = obj.photos[0].uri || obj.photos[0].url || obj.photos[0];
-          }
+  // 売却済みと出品中の両方を並列取得
+  const soldUrl = `https://jp.mercari.com/search?keyword=${encodeURIComponent(q)}&status=sold_out&order=desc&sort=created_time`;
+  const liveUrl = `https://jp.mercari.com/search?keyword=${encodeURIComponent(q)}&status=on_sale&order=desc&sort=created_time`;
+
+  const [soldItems, liveItems] = await Promise.all([
+    fetchMercariPage(soldUrl, headers, true),
+    fetchMercariPage(liveUrl, headers, false),
+  ]);
+
+  const all = [...soldItems, ...liveItems];
+  return dedupByUrl(all).slice(0, MAX_ITEMS * 2); // メルカリは件数多めに
+}
+
+async function fetchMercariPage(url, headers, expectSold) {
+  try {
+    const html = await fetchHtml(url, { headers });
+    const $ = cheerio.load(html);
+    const items = [];
+
+    // 戦略1: __NEXT_DATA__ からJSON抽出（最も信頼性高い）
+    const next = $('#__NEXT_DATA__').html();
+    if (next) {
+      try {
+        const data = JSON.parse(next);
+        extractMercariItemsFromJson(data, items, expectSold);
+      } catch (e) {
+        console.warn('  Mercari __NEXT_DATA__ parse error:', e.message);
+      }
+    }
+
+    // 戦略2: itemId属性を持つ要素から抽出
+    if (items.length === 0) {
+      $('[data-testid*="item"], li[id*="item"], a[href^="/item/"]').each((_, el) => {
+        const $el = $(el);
+        const $link = $el.is('a') ? $el : $el.find('a[href^="/item/"]').first();
+        const href = $link.attr('href');
+        if (!href) return;
+        const fullUrl = href.startsWith('http') ? href : 'https://jp.mercari.com' + href;
+        const img = $el.find('img').first();
+        const title = $el.attr('aria-label') || $link.attr('aria-label') || img.attr('alt') || $el.find('[class*="name"], [class*="title"]').first().text() || '';
+        const image = extractImageUrl($el);
+        const priceText = $el.find('[class*=price], mer-price, [data-testid*="price"]').first().text() ||
+                          $el.text().match(/¥\s*([\d,]+)/)?.[0] || '';
+        const price = parsePriceJP(priceText);
+        const isSoldVisible = $el.text().includes('SOLD') || $el.find('[class*="sold"], .item-sold-out-badge').length > 0;
+        if (title && price) {
           items.push({
-            title: obj.name,
-            price: parseInt(obj.price, 10),
-            url: `https://jp.mercari.com/item/${obj.id}`,
-            image,
-            sold: obj.status === 'sold_out',
-            condition: obj.itemConditionName || null,
-            sold_date: obj.updated || null,
+            title: title.trim().slice(0, 120), price, url: fullUrl, image,
+            sold: expectSold || isSoldVisible, condition: null, sold_date: null,
           });
         }
-        for (const k in obj) walk(obj[k]);
-      };
-      walk(data);
-    } catch (e) { /* ignore */ }
-  }
+      });
+    }
 
-  // a要素から拾うフォールバック
-  if (items.length === 0) {
-    $('a[href^="/item/"]').each((_, el) => {
-      const $el = $(el);
-      const href = 'https://jp.mercari.com' + $el.attr('href');
-      const img = $el.find('img').first();
-      const title = $el.attr('aria-label') || img.attr('alt') || '';
-      const image = extractImageUrl($el);
-      const priceText = $el.find('[class*=price]').first().text() ||
-                        $el.text().match(/¥[\d,]+/)?.[0] || '';
-      const price = parsePriceJP(priceText);
-      if (title && price) {
-        items.push({ title, price, url: href, image, sold: true, condition: null });
+    return items;
+  } catch (e) {
+    console.error('  Mercari fetch error:', e.message);
+    return [];
+  }
+}
+
+// __NEXT_DATA__ から再帰的にメルカリ商品を抽出（複数の構造パターンに対応）
+function extractMercariItemsFromJson(data, items, defaultSold) {
+  const visited = new WeakSet();
+  const walk = (obj) => {
+    if (!obj || typeof obj !== 'object') return;
+    if (visited.has(obj)) return;
+    visited.add(obj);
+    if (Array.isArray(obj)) { obj.forEach(walk); return; }
+
+    // メルカリ商品オブジェクトの特徴判定（パターンA: id+name+price+status）
+    const isItemA = obj.id && (obj.name || obj.productName) && obj.price !== undefined &&
+      (obj.status || obj.itemStatus || obj.itemConditionId || obj.itemConditionName);
+
+    // パターンB: itemId+itemName
+    const isItemB = (obj.itemId || obj.item_id) && (obj.itemName || obj.item_name || obj.name) && (obj.price !== undefined || obj.itemPrice !== undefined);
+
+    if (isItemA || isItemB) {
+      const id = obj.id || obj.itemId || obj.item_id;
+      const name = obj.name || obj.itemName || obj.item_name || obj.productName;
+      const price = parseInt(obj.price || obj.itemPrice || 0, 10);
+      let image = null;
+      if (Array.isArray(obj.thumbnails) && obj.thumbnails.length > 0) {
+        image = typeof obj.thumbnails[0] === 'string' ? obj.thumbnails[0] : (obj.thumbnails[0].url || obj.thumbnails[0].uri || null);
+      } else if (obj.thumbnail) {
+        image = typeof obj.thumbnail === 'string' ? obj.thumbnail : (obj.thumbnail.url || obj.thumbnail.uri || null);
+      } else if (obj.imageUrl || obj.image_url) {
+        image = obj.imageUrl || obj.image_url;
+      } else if (Array.isArray(obj.photos) && obj.photos.length > 0) {
+        image = obj.photos[0].uri || obj.photos[0].url || obj.photos[0];
+      } else if (Array.isArray(obj.images) && obj.images.length > 0) {
+        image = obj.images[0].uri || obj.images[0].url || obj.images[0];
       }
-    });
-  }
 
-  const seen = new Set();
-  const dedup = items.filter(it => {
-    if (seen.has(it.url)) return false;
-    seen.add(it.url);
-    return it.sold;
-  });
-  return dedup.slice(0, MAX_ITEMS);
+      const status = obj.status || obj.itemStatus || '';
+      const isSold = status === 'sold_out' || status === 'sold' || status === 'completed' || defaultSold;
+
+      if (name && price > 0) {
+        items.push({
+          title: String(name).slice(0, 120),
+          price,
+          url: `https://jp.mercari.com/item/${id}`,
+          image,
+          sold: isSold,
+          condition: obj.itemConditionName || obj.item_condition_name || obj.condition || null,
+          sold_date: obj.updated || obj.updatedAt || obj.completedAt || null,
+        });
+      }
+    }
+
+    for (const k in obj) {
+      try { walk(obj[k]); } catch (e) { /* ignore circular */ }
+    }
+  };
+  walk(data);
 }
 
 // ====== ラクマ ======
@@ -821,6 +876,258 @@ async function searchYahooShopping(q, exclude) {
   return dedupByUrl(items).slice(0, MAX_ITEMS);
 }
 
+// ====== ブランディア (実取引・オークション形式) ======
+async function searchBrandear(q, exclude) {
+  // ブランディアの商品検索
+  const url = `https://item.brandear.jp/search?keyword=${encodeURIComponent(q)}`;
+  try {
+    const html = await fetchHtml(url);
+    const $ = cheerio.load(html);
+    const items = [];
+
+    // 複数のセレクタで商品コンテナを探す
+    const containers = ['li.item', '.item-list li', '.item-card', '[class*="ItemCard"]', '.product-item', 'article'];
+    let $items = $();
+    for (const sel of containers) {
+      $items = $(sel);
+      if ($items.length > 0) {
+        console.log(`  Brandear: matched ${$items.length} with "${sel}"`);
+        break;
+      }
+    }
+
+    $items.each((_, el) => {
+      const $el = $(el);
+      const a = $el.find('a[href*="brandear"], a[href*="/item/"]').first();
+      const title = ($el.find('.item-name, .title, h3, h2').first().text() || a.attr('title') || a.find('img').attr('alt') || '').trim();
+      let href = a.attr('href') || '';
+      if (href.startsWith('/')) href = 'https://item.brandear.jp' + href;
+      const priceText = $el.find('[class*="price"], .price, .amount').first().text() ||
+                        $el.text().match(/¥?\s*([\d,]+)\s*円/)?.[0];
+      const price = parsePriceJP(priceText);
+      const image = extractImageUrl($el);
+      if (title && price && href) {
+        items.push({
+          title: title.slice(0, 120), price, url: href, image,
+          sold: true, condition: null, sold_date: null, note: 'ブランディア相場',
+        });
+      }
+    });
+
+    // フォールバック
+    if (items.length === 0) {
+      $('a[href*="brandear"]').each((_, el) => {
+        const $a = $(el);
+        const $row = $a.closest('li, div, article');
+        const href = $a.attr('href') || '';
+        const title = ($a.text() || $a.attr('title') || $a.find('img').attr('alt') || '').trim();
+        if (!title || title.length < 5) return;
+        const priceText = $row.text().match(/¥?\s*([\d,]+)\s*円/)?.[0];
+        const price = parsePriceJP(priceText);
+        const image = extractImageUrl($row);
+        if (price) {
+          items.push({ title: title.slice(0,120), price, url: href.startsWith('/') ? 'https://item.brandear.jp' + href : href, image, sold: true, condition: null, sold_date: null, note: 'ブランディア相場' });
+        }
+      });
+    }
+
+    return dedupByUrl(items).slice(0, MAX_ITEMS);
+  } catch (e) {
+    console.error('Brandear error:', e.message);
+    return [];
+  }
+}
+
+// ====== コメ兵 (現行販売価格) ======
+async function searchKomehyo(q, exclude) {
+  const url = `https://komehyo.jp/ec/search/result?keyword=${encodeURIComponent(q)}`;
+  try {
+    const html = await fetchHtml(url);
+    const $ = cheerio.load(html);
+    const items = [];
+
+    const containers = ['li.p-item', '.product-card', '.item', '[class*="Product"]', '[class*="ItemCard"]', 'article'];
+    let $items = $();
+    for (const sel of containers) {
+      $items = $(sel);
+      if ($items.length > 0) {
+        console.log(`  Komehyo: matched ${$items.length} with "${sel}"`);
+        break;
+      }
+    }
+
+    $items.each((_, el) => {
+      const $el = $(el);
+      const a = $el.find('a[href*="komehyo"], a[href*="/item/"], a[href*="/product/"]').first();
+      const title = ($el.find('.item-name, .product-name, .title, h3, h2').first().text() || a.attr('title') || a.find('img').attr('alt') || '').trim();
+      let href = a.attr('href') || '';
+      if (href.startsWith('/')) href = 'https://komehyo.jp' + href;
+      const priceText = $el.find('[class*="price"], .price').first().text() ||
+                        $el.text().match(/¥?\s*([\d,]+)\s*円/)?.[0];
+      const price = parsePriceJP(priceText);
+      const image = extractImageUrl($el);
+      if (title && price && href) {
+        items.push({
+          title: title.slice(0, 120), price, url: href, image,
+          sold: false, condition: null, sold_date: null, note: 'コメ兵 販売中',
+        });
+      }
+    });
+
+    if (items.length === 0) {
+      $('a[href*="komehyo.jp"]').each((_, el) => {
+        const $a = $(el);
+        const $row = $a.closest('li, div, article');
+        const href = $a.attr('href') || '';
+        const title = ($a.text() || $a.attr('title') || $a.find('img').attr('alt') || '').trim();
+        if (!title || title.length < 5) return;
+        const priceText = $row.text().match(/¥?\s*([\d,]+)\s*円/)?.[0];
+        const price = parsePriceJP(priceText);
+        const image = extractImageUrl($row);
+        if (price) {
+          items.push({ title: title.slice(0,120), price, url: href, image, sold: false, condition: null, sold_date: null, note: 'コメ兵 販売中' });
+        }
+      });
+    }
+
+    return dedupByUrl(items).slice(0, MAX_ITEMS);
+  } catch (e) {
+    console.error('Komehyo error:', e.message);
+    return [];
+  }
+}
+
+// ====== なんぼや (買取参考価格) ======
+async function searchNanboya(q, exclude) {
+  // なんぼやの買取実績ページ検索
+  const url = `https://nanboya.com/search/?q=${encodeURIComponent(q)}`;
+  try {
+    const html = await fetchHtml(url);
+    const $ = cheerio.load(html);
+    const items = [];
+
+    // なんぼやは買取実績や商品ページで価格を表示
+    const containers = ['.result-item', '.purchase-record', '.kaitori-item', 'article', 'li', '[class*="Result"]'];
+    let $items = $();
+    for (const sel of containers) {
+      $items = $(sel);
+      if ($items.length > 5) {
+        console.log(`  Nanboya: matched ${$items.length} with "${sel}"`);
+        break;
+      }
+    }
+
+    $items.each((_, el) => {
+      const $el = $(el);
+      const a = $el.find('a[href*="nanboya"]').first();
+      const title = ($el.find('.title, h3, h2, .item-name').first().text() || a.attr('title') || a.find('img').attr('alt') || '').trim();
+      let href = a.attr('href') || $el.find('a').first().attr('href') || '';
+      if (href.startsWith('/')) href = 'https://nanboya.com' + href;
+      const priceText = $el.find('[class*="price"], .price, .amount').first().text() ||
+                        $el.text().match(/¥?\s*([\d,]+)\s*円/)?.[0];
+      const price = parsePriceJP(priceText);
+      const image = extractImageUrl($el);
+      if (title && price && href && title.length > 3) {
+        items.push({
+          title: title.slice(0, 120), price, url: href, image,
+          sold: true, condition: null, sold_date: null, note: 'なんぼや 買取実績',
+        });
+      }
+    });
+
+    return dedupByUrl(items).slice(0, MAX_ITEMS);
+  } catch (e) {
+    console.error('Nanboya error:', e.message);
+    return [];
+  }
+}
+
+// ====== まんだらけ (現行販売) - フィギュア・コレクター向け ======
+async function searchMandarake(q, exclude) {
+  const url = `https://order.mandarake.co.jp/order/listPage/list?keyword=${encodeURIComponent(q)}&lang=ja`;
+  try {
+    const html = await fetchHtml(url);
+    const $ = cheerio.load(html);
+    const items = [];
+
+    const containers = ['div.block', '.entry', '.item', 'tr.item', '[class*="Product"]'];
+    let $items = $();
+    for (const sel of containers) {
+      $items = $(sel);
+      if ($items.length > 0) {
+        console.log(`  Mandarake: matched ${$items.length} with "${sel}"`);
+        break;
+      }
+    }
+
+    $items.each((_, el) => {
+      const $el = $(el);
+      const a = $el.find('a[href*="mandarake"], a[href*="/item/"], a[href*="/order/"]').first();
+      const title = ($el.find('.title, .name, h3, h4').first().text() || a.attr('title') || a.find('img').attr('alt') || '').trim();
+      let href = a.attr('href') || '';
+      if (href.startsWith('/')) href = 'https://order.mandarake.co.jp' + href;
+      const priceText = $el.find('[class*="price"], .price').first().text() ||
+                        $el.text().match(/¥?\s*([\d,]+)\s*円/)?.[0];
+      const price = parsePriceJP(priceText);
+      const image = extractImageUrl($el);
+      if (title && price && href && title.length > 3) {
+        items.push({
+          title: title.slice(0, 120), price, url: href, image,
+          sold: false, condition: null, sold_date: null, note: 'まんだらけ 販売中',
+        });
+      }
+    });
+
+    return dedupByUrl(items).slice(0, MAX_ITEMS);
+  } catch (e) {
+    console.error('Mandarake error:', e.message);
+    return [];
+  }
+}
+
+// ====== 大黒屋 (買取・販売) ======
+async function searchDaikokuya(q, exclude) {
+  const url = `https://www.e-daikoku.com/sale/list/?q=${encodeURIComponent(q)}`;
+  try {
+    const html = await fetchHtml(url);
+    const $ = cheerio.load(html);
+    const items = [];
+
+    const containers = ['.item-list li', '.product-item', '.item', 'article', '[class*="Item"]'];
+    let $items = $();
+    for (const sel of containers) {
+      $items = $(sel);
+      if ($items.length > 0) {
+        console.log(`  Daikokuya: matched ${$items.length} with "${sel}"`);
+        break;
+      }
+    }
+
+    $items.each((_, el) => {
+      const $el = $(el);
+      const a = $el.find('a').first();
+      const title = ($el.find('.item-name, .title, h3, h2').first().text() || a.attr('title') || a.find('img').attr('alt') || '').trim();
+      let href = a.attr('href') || '';
+      if (href.startsWith('/')) href = 'https://www.e-daikoku.com' + href;
+      const priceText = $el.find('[class*="price"], .price').first().text() ||
+                        $el.text().match(/¥?\s*([\d,]+)\s*円/)?.[0];
+      const price = parsePriceJP(priceText);
+      const image = extractImageUrl($el);
+      if (title && price && href && title.length > 3) {
+        items.push({
+          title: title.slice(0, 120), price, url: href, image,
+          sold: false, condition: null, sold_date: null, note: '大黒屋 販売中',
+        });
+      }
+    });
+
+    return dedupByUrl(items).slice(0, MAX_ITEMS);
+  } catch (e) {
+    console.error('Daikokuya error:', e.message);
+    return [];
+  }
+}
+
 // ====== TikTok Shop (実験的) ======
 async function searchTikTokShop(q, exclude) {
   // TikTok Shopは地域制限が強く、公式APIなしでの安定スクレイピングは困難。
@@ -857,6 +1164,11 @@ const handlers = {
   rakuma: searchRakuma,
   rakuten: searchRakutenIchiba,
   yahoo_shopping: searchYahooShopping,
+  brandear: searchBrandear,
+  komehyo: searchKomehyo,
+  nanboya: searchNanboya,
+  mandarake: searchMandarake,
+  daikokuya: searchDaikokuya,
   ebay: searchEbay,
   tiktok: searchTikTokShop,
 };

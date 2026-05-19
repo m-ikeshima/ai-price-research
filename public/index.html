@@ -360,10 +360,16 @@
   .badge-rakuma { background: #db2777; }
   .badge-rakuten { background: #bf0000; }
   .badge-yahoo_shopping { background: #ff0033; }
+  .badge-brandear { background: #9333ea; }
+  .badge-komehyo { background: #0891b2; }
+  .badge-nanboya { background: #0284c7; }
+  .badge-mandarake { background: #f59e0b; color: #1e293b; }
+  .badge-daikokuya { background: #475569; }
   .badge-ebay { background: #2563eb; }
   .badge-tiktok { background: #1e293b; border: 1px solid #ec4899; }
   .badge-sold { background: #10b981; color: white; }
   .badge-listing { background: #6366f1; color: white; }
+  .badge-dealer { background: #ec4899; color: white; }
 
   /* スティッキー実行ボタン */
   .sticky-action {
@@ -567,7 +573,7 @@
         <input type="text" id="excludeKw" placeholder="例: ジャンク 部品取り" />
       </div>
     </div>
-    <label style="margin-top:14px">対象マーケット<span style="color:var(--muted);font-weight:400;font-size:11px;margin-left:6px">（💰=実取引 / 🏷️=現行販売）</span></label>
+    <label style="margin-top:14px">対象マーケット<span style="color:var(--muted);font-weight:400;font-size:11px;margin-left:6px">（💰=実取引 / 🏷️=現行販売 / 🏪=業者買取）</span></label>
     <div class="market-grid" id="marketChecks">
       <label class="market-chip checked"><input type="checkbox" value="yahoo_auction" checked /><span class="dot">💰</span>ヤフオク!</label>
       <label class="market-chip checked"><input type="checkbox" value="paypay" checked /><span class="dot">💰</span>Yahoo!フリマ</label>
@@ -575,6 +581,11 @@
       <label class="market-chip checked"><input type="checkbox" value="rakuma" checked /><span class="dot">💰</span>ラクマ</label>
       <label class="market-chip checked"><input type="checkbox" value="rakuten" checked /><span class="dot">🏷️</span>楽天市場</label>
       <label class="market-chip checked"><input type="checkbox" value="yahoo_shopping" checked /><span class="dot">🏷️</span>Yahoo!ショッピング</label>
+      <label class="market-chip checked"><input type="checkbox" value="brandear" checked /><span class="dot">🏪</span>ブランディア</label>
+      <label class="market-chip checked"><input type="checkbox" value="komehyo" checked /><span class="dot">🏪</span>コメ兵</label>
+      <label class="market-chip checked"><input type="checkbox" value="nanboya" checked /><span class="dot">🏪</span>なんぼや</label>
+      <label class="market-chip checked"><input type="checkbox" value="mandarake" checked /><span class="dot">🏪</span>まんだらけ</label>
+      <label class="market-chip checked"><input type="checkbox" value="daikokuya" checked /><span class="dot">🏪</span>大黒屋</label>
       <label class="market-chip checked"><input type="checkbox" value="ebay" checked /><span class="dot">💰</span>eBay</label>
       <label class="market-chip checked"><input type="checkbox" value="tiktok" checked /><span class="dot">🏷️</span>TikTok Shop</label>
     </div>
@@ -1260,6 +1271,9 @@ function renderSummary() {
   const valid = state.results.filter(r => typeof r.price === 'number' && r.price > 0);
   if (valid.length === 0) return;
 
+  // メルカリ実売は買取査定の最重要指標として独立セクション
+  const mercariSold = valid.filter(r => r.market === 'mercari' && r.sold === true);
+
   // 実取引(sold=true) と 現行販売(sold=false) に分割
   const soldItems = valid.filter(r => r.sold === true);
   const listingItems = valid.filter(r => r.sold !== true);
@@ -1300,8 +1314,20 @@ function renderSummary() {
 
   let html = '';
 
+  // メルカリ実売（最重要指標）を最上部に表示
+  const mercariStats = computeStats(mercariSold);
+  if (mercariStats) {
+    html += `<div class="summary-section-title" style="background:linear-gradient(90deg,rgba(220,38,38,0.15),transparent);border-left:3px solid #dc2626;padding-left:10px;border-radius:0 6px 6px 0">⭐ メルカリ実売価格（買取査定の最重要指標・${mercariStats.prices.length}件）</div>`;
+    html += `<div class="summary-grid-inner">
+      ${cardHtml('平均価格', fmt(mercariStats.avg), `±${mercariStats.std.toLocaleString()}`, mercariStats.avgItem, true)}
+      ${cardHtml('中央値', fmt(mercariStats.medianItem.price), '相場の目安', mercariStats.medianItem, true)}
+      ${cardHtml('最高売価', fmt(mercariStats.maxItem.price), `${mercariStats.prices.length}件中`, mercariStats.maxItem, false)}
+      ${cardHtml('最低売価', fmt(mercariStats.minItem.price), `${mercariStats.prices.length}件中`, mercariStats.minItem, false)}
+    </div>`;
+  }
+
   if (soldStats) {
-    html += `<div class="summary-section-title">💰 実取引価格（実際に売れた金額・${soldStats.prices.length}件）</div>`;
+    html += `<div class="summary-section-title" style="margin-top:14px">💰 全マーケット実取引価格（実際に売れた金額・${soldStats.prices.length}件）</div>`;
     html += `<div class="summary-grid-inner">
       ${cardHtml('平均価格', fmt(soldStats.avg), `±${soldStats.std.toLocaleString()}`, soldStats.avgItem, true)}
       ${cardHtml('中央値', fmt(soldStats.medianItem.price), '外れ値に強い', soldStats.medianItem, true)}
@@ -1393,9 +1419,12 @@ function filterResults(market) {
     const imageHtml = r.image
       ? `<div class="result-image"><img src="${escapeHtml(r.image)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'placeholder\\'>📷</div>'"></div>`
       : `<div class="result-image"><div class="placeholder">📷</div></div>`;
-    const typeBadge = r.sold === true
-      ? '<span class="badge badge-sold">💰 実取引</span>'
-      : '<span class="badge badge-listing">🏷️ 販売中</span>';
+    const isDealer = ['brandear','komehyo','nanboya','mandarake','daikokuya'].includes(r.market);
+    const typeBadge = isDealer
+      ? '<span class="badge badge-dealer">🏪 業者</span>'
+      : (r.sold === true
+        ? '<span class="badge badge-sold">💰 実取引</span>'
+        : '<span class="badge badge-listing">🏷️ 販売中</span>');
     const bodyHtml = `
       <div class="result-body">
         <div class="result-head">
@@ -1423,6 +1452,11 @@ function marketLabel(m) {
     rakuma: 'ラクマ',
     rakuten: '楽天市場',
     yahoo_shopping: 'Yahoo!ショッピング',
+    brandear: 'ブランディア',
+    komehyo: 'コメ兵',
+    nanboya: 'なんぼや',
+    mandarake: 'まんだらけ',
+    daikokuya: '大黒屋',
     ebay: 'eBay',
     tiktok: 'TikTok'
   }[m] || m;
