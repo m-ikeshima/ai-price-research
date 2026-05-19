@@ -402,6 +402,94 @@ async function searchEbay(q, exclude) {
   return items.slice(0, MAX_ITEMS);
 }
 
+// ====== 楽天市場 (現行販売価格) ======
+async function searchRakutenIchiba(q, exclude) {
+  const url = `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(q)}/`;
+  const html = await fetchHtml(url);
+  const $ = cheerio.load(html);
+  const items = [];
+
+  // 楽天市場の商品リスト構造
+  $('.searchresultitem, [class*="item-grid"], .dui-card').each((_, el) => {
+    const $el = $(el);
+    const titleEl = $el.find('h2 a, .title a, a[title], .content--3xN3').first();
+    const title = (titleEl.text() || titleEl.attr('title') || '').trim();
+    let href = titleEl.attr('href') || $el.find('a').first().attr('href') || '';
+    const priceText = $el.find('.price, [class*="price"]').first().text();
+    const price = parsePriceJP(priceText);
+    const imgEl = $el.find('img').first();
+    const image = imgEl.attr('src') || imgEl.attr('data-src') || null;
+
+    if (title && price) {
+      items.push({
+        title, price, url: href, image,
+        sold: false, // 楽天市場は現行販売価格
+        condition: null, sold_date: null,
+        note: '現在販売中',
+      });
+    }
+  });
+
+  return items.slice(0, MAX_ITEMS);
+}
+
+// ====== Yahoo!ショッピング (現行販売価格) ======
+async function searchYahooShopping(q, exclude) {
+  const url = `https://shopping.yahoo.co.jp/search?p=${encodeURIComponent(q)}`;
+  const html = await fetchHtml(url);
+  const $ = cheerio.load(html);
+  const items = [];
+
+  // 商品アイテム抽出
+  $('[class*="LoopList"] li, [class*="SearchResultItem"], li.LoopList__item').each((_, el) => {
+    const $el = $(el);
+    const titleEl = $el.find('a[href*="/products/"], a[href*="/store/"], .Title a, h3 a').first();
+    let title = (titleEl.text() || titleEl.attr('title') || $el.find('h3').first().text() || '').trim();
+    let href = titleEl.attr('href') || $el.find('a').first().attr('href') || '';
+    const priceText = $el.find('[class*="Price"], [class*="price"]').first().text();
+    const price = parsePriceJP(priceText);
+    const imgEl = $el.find('img').first();
+    const image = imgEl.attr('src') || imgEl.attr('data-src') || imgEl.attr('data-original') || null;
+
+    if (title && price) {
+      items.push({
+        title, price, url: href, image,
+        sold: false, // ヤフショは現行販売価格
+        condition: null, sold_date: null,
+        note: '現在販売中',
+      });
+    }
+  });
+
+  // フォールバック: a要素から拾う
+  if (items.length === 0) {
+    $('a[href*="/products/"], a[href*="/store/"]').each((_, el) => {
+      const $el = $(el);
+      const href = $el.attr('href') || '';
+      const title = $el.attr('title') || $el.text().trim().slice(0, 80);
+      const imgEl = $el.find('img').first();
+      const image = imgEl.attr('src') || imgEl.attr('data-src') || null;
+      // 親要素から価格を探す
+      const $parent = $el.closest('li, div');
+      const priceText = $parent.find('[class*="price"]').first().text() ||
+                        $parent.text().match(/¥[\d,]+/)?.[0] || '';
+      const price = parsePriceJP(priceText);
+      if (title && price) {
+        items.push({ title, price, url: href, image, sold: false, condition: null, sold_date: null, note: '現在販売中' });
+      }
+    });
+  }
+
+  // 重複削除
+  const seen = new Set();
+  const dedup = items.filter(it => {
+    if (seen.has(it.url)) return false;
+    seen.add(it.url);
+    return true;
+  });
+  return dedup.slice(0, MAX_ITEMS);
+}
+
 // ====== TikTok Shop (実験的) ======
 async function searchTikTokShop(q, exclude) {
   // TikTok Shopは地域制限が強く、公式APIなしでの安定スクレイピングは困難。
@@ -436,6 +524,8 @@ const handlers = {
   paypay: searchPayPayFlea,
   mercari: searchMercari,
   rakuma: searchRakuma,
+  rakuten: searchRakutenIchiba,
+  yahoo_shopping: searchYahooShopping,
   ebay: searchEbay,
   tiktok: searchTikTokShop,
 };

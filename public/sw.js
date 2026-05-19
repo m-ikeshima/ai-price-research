@@ -1,7 +1,7 @@
 // AI相場リサーチ - Service Worker
 // アプリシェルのみキャッシュ。API応答はキャッシュしない（常に新鮮なデータを取得）
 
-const CACHE_NAME = 'rs-cache-v5';
+const CACHE_NAME = 'rs-cache-v6';
 const APP_SHELL = [
   '/',
   '/index.html',

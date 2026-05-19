@@ -246,9 +246,20 @@
 
   /* サマリ */
   .summary-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .summary-grid-inner {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
+  }
+  .summary-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    padding: 6px 4px;
   }
   .stat-card {
     background: var(--panel-2);
@@ -347,8 +358,12 @@
   .badge-paypay { background: #f97316; }
   .badge-mercari { background: #dc2626; }
   .badge-rakuma { background: #db2777; }
+  .badge-rakuten { background: #bf0000; }
+  .badge-yahoo_shopping { background: #ff0033; }
   .badge-ebay { background: #2563eb; }
   .badge-tiktok { background: #1e293b; border: 1px solid #ec4899; }
+  .badge-sold { background: #10b981; color: white; }
+  .badge-listing { background: #6366f1; color: white; }
 
   /* スティッキー実行ボタン */
   .sticky-action {
@@ -496,7 +511,7 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   @media (min-width: 600px) {
-    .summary-grid { grid-template-columns: repeat(4, 1fr); }
+    .summary-grid-inner { grid-template-columns: repeat(4, 1fr); }
     .market-grid { grid-template-columns: repeat(3, 1fr); }
   }
 </style>
@@ -510,7 +525,7 @@
       <h1>AI相場リサーチ</h1>
       <p>画像から複数マーケットの実取引価格を一括検索</p>
     </div>
-    <div class="icon-btn" id="btnSettings" title="設定">⚙️</div>
+    <button type="button" class="icon-btn" id="btnSettings" title="設定" style="background:var(--panel);border:1px solid var(--border);">⚙️</button>
   </div>
 
   <!-- 画像アップロード -->
@@ -552,14 +567,16 @@
         <input type="text" id="excludeKw" placeholder="例: ジャンク 部品取り" />
       </div>
     </div>
-    <label style="margin-top:14px">対象マーケット</label>
+    <label style="margin-top:14px">対象マーケット<span style="color:var(--muted);font-weight:400;font-size:11px;margin-left:6px">（💰=実取引 / 🏷️=現行販売）</span></label>
     <div class="market-grid" id="marketChecks">
-      <label class="market-chip checked"><input type="checkbox" value="yahoo_auction" checked /><span class="dot">🏛️</span>ヤフオク!</label>
-      <label class="market-chip checked"><input type="checkbox" value="paypay" checked /><span class="dot">🛍️</span>Yahoo!フリマ</label>
-      <label class="market-chip checked"><input type="checkbox" value="mercari" checked /><span class="dot">🟥</span>メルカリ</label>
-      <label class="market-chip checked"><input type="checkbox" value="rakuma" checked /><span class="dot">🟪</span>ラクマ</label>
-      <label class="market-chip checked"><input type="checkbox" value="ebay" checked /><span class="dot">🌐</span>eBay</label>
-      <label class="market-chip checked"><input type="checkbox" value="tiktok" checked /><span class="dot">▶️</span>TikTok Shop</label>
+      <label class="market-chip checked"><input type="checkbox" value="yahoo_auction" checked /><span class="dot">💰</span>ヤフオク!</label>
+      <label class="market-chip checked"><input type="checkbox" value="paypay" checked /><span class="dot">💰</span>Yahoo!フリマ</label>
+      <label class="market-chip checked"><input type="checkbox" value="mercari" checked /><span class="dot">💰</span>メルカリ</label>
+      <label class="market-chip checked"><input type="checkbox" value="rakuma" checked /><span class="dot">💰</span>ラクマ</label>
+      <label class="market-chip checked"><input type="checkbox" value="rakuten" checked /><span class="dot">🏷️</span>楽天市場</label>
+      <label class="market-chip checked"><input type="checkbox" value="yahoo_shopping" checked /><span class="dot">🏷️</span>Yahoo!ショッピング</label>
+      <label class="market-chip checked"><input type="checkbox" value="ebay" checked /><span class="dot">💰</span>eBay</label>
+      <label class="market-chip checked"><input type="checkbox" value="tiktok" checked /><span class="dot">🏷️</span>TikTok Shop</label>
     </div>
   </div>
 
@@ -610,8 +627,8 @@
 <!-- スティッキー実行ボタン -->
 <div class="sticky-action">
   <div class="inner">
-    <button id="btnAnalyze" class="secondary">🤖 AIで識別</button>
-    <button id="btnSearch">🔎 検索実行</button>
+    <button type="button" id="btnAnalyze" class="secondary">🤖 AIで識別</button>
+    <button type="button" id="btnSearch">🔎 検索実行</button>
   </div>
 </div>
 
@@ -620,7 +637,7 @@
   <div class="modal">
     <div class="modal-header">
       <h2>⚙️ 設定</h2>
-      <button class="modal-close" id="btnCloseSettings">×</button>
+      <button type="button" class="modal-close" id="btnCloseSettings">×</button>
     </div>
     <div class="field-stack">
       <div>
@@ -646,7 +663,7 @@
     <div class="info-box" style="margin-top:8px">
       📱 「ホーム画面に追加」するには、Safariの共有ボタン → 「ホーム画面に追加」を選択してください。
     </div>
-    <button id="btnSaveSettings" style="margin-top:14px">保存</button>
+    <button type="button" id="btnSaveSettings" style="margin-top:14px">保存</button>
   </div>
 </div>
 
@@ -958,8 +975,15 @@ KEYWORD: アップル iPhone 14 Pro 256GB パープル
   return extractKeyword(data.choices[0].message.content);
 }
 
+// 検索の二重実行防止フラグ
+let _isSearching = false;
+
 // ====== 検索実行 ======
 async function searchAllMarkets() {
+  if (_isSearching) {
+    console.warn('[search] already running - ignored');
+    return;
+  }
   const keyword = ($('finalKeyword').value || '').trim();
   if (!keyword) {
     setStatus('まず「AIで識別」を実行するか、キーワードを入力してください', 'error');
@@ -967,6 +991,7 @@ async function searchAllMarkets() {
   }
   const markets = Array.from(document.querySelectorAll('#marketChecks input:checked')).map(c => c.value);
   if (markets.length === 0) { setStatus('対象マーケットを1つ以上選択してください', 'error'); return; }
+  _isSearching = true;
 
   const exclude = $('excludeKw').value.trim();
   const condition = $('condition').value;
@@ -1030,8 +1055,8 @@ async function searchAllMarkets() {
   btnSearch.classList.remove('busy');
   btnSearch.innerHTML = origSearchText;
 
-  // 進捗パネルを2秒後に閉じる
-  setTimeout(() => $('progressPanel').classList.remove('show'), 2000);
+  // 検索終了マーク
+  _isSearching = false;
 
   if (total === 0) {
     const errMsg = errors.length ? '<br>エラー: ' + errors.join(' / ') : '';
@@ -1039,8 +1064,18 @@ async function searchAllMarkets() {
     return;
   }
   setStatus(`✅ ${total} 件取得 (${markets.length}マーケット中 ${Object.values(perMarket).filter(v=>v.count>0).length} マーケットからデータ)`, 'success');
-  renderSummary();
-  renderResults(perMarket);
+
+  try {
+    renderSummary();
+    renderResults(perMarket);
+    // 結果が見えるようにスクロール
+    setTimeout(() => {
+      $('summaryPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  } catch (e) {
+    console.error('renderError', e);
+    setStatus('結果表示エラー: ' + e.message, 'error');
+  }
 }
 
 // 進捗パネル初期化
@@ -1091,24 +1126,12 @@ function renderSummary() {
   const valid = state.results.filter(r => typeof r.price === 'number' && r.price > 0);
   if (valid.length === 0) return;
 
-  const sortedItems = [...valid].sort((a, b) => a.price - b.price);
-  const prices = sortedItems.map(r => r.price);
-  const sum = prices.reduce((a, b) => a + b, 0);
-  const avg = Math.round(sum / prices.length);
-  const minItem = sortedItems[0];
-  const maxItem = sortedItems[sortedItems.length - 1];
-  const medianItem = sortedItems[Math.floor(sortedItems.length / 2)];
-  // 平均に最も近い商品
-  let avgItem = sortedItems[0]; let avgDiff = Math.abs(sortedItems[0].price - avg);
-  for (const it of sortedItems) {
-    const d = Math.abs(it.price - avg);
-    if (d < avgDiff) { avgDiff = d; avgItem = it; }
-  }
-  const variance = prices.reduce((acc, v) => acc + Math.pow(v - avg, 2), 0) / prices.length;
-  const std = Math.round(Math.sqrt(variance));
+  // 実取引(sold=true) と 現行販売(sold=false) に分割
+  const soldItems = valid.filter(r => r.sold === true);
+  const listingItems = valid.filter(r => r.sold !== true);
+
   const fmt = (n) => '¥' + n.toLocaleString();
 
-  // タップで該当アイテムのURLを開く（URLが無ければクリック不可）
   const cardHtml = (lblText, valStr, subStr, item, highlight) => {
     const has = item && item.url;
     return `<div class="stat-card ${highlight ? 'highlight' : ''}" data-clickable="${has ? 'true' : 'false'}" data-url="${has ? escapeHtml(item.url) : ''}">
@@ -1119,14 +1142,53 @@ function renderSummary() {
     </div>`;
   };
 
-  $('summaryGrid').innerHTML = `
-    ${cardHtml('平均価格', fmt(avg), `±${std.toLocaleString()}`, avgItem, true)}
-    ${cardHtml('中央値', fmt(medianItem.price), '外れ値に強い', medianItem, true)}
-    ${cardHtml('最高価格', fmt(maxItem.price), `${prices.length}件中`, maxItem, false)}
-    ${cardHtml('最低価格', fmt(minItem.price), `${prices.length}件中`, minItem, false)}
-  `;
+  const computeStats = (items) => {
+    if (items.length === 0) return null;
+    const sortedItems = [...items].sort((a, b) => a.price - b.price);
+    const prices = sortedItems.map(r => r.price);
+    const sum = prices.reduce((a, b) => a + b, 0);
+    const avg = Math.round(sum / prices.length);
+    const minItem = sortedItems[0];
+    const maxItem = sortedItems[sortedItems.length - 1];
+    const medianItem = sortedItems[Math.floor(sortedItems.length / 2)];
+    let avgItem = sortedItems[0]; let avgDiff = Math.abs(sortedItems[0].price - avg);
+    for (const it of sortedItems) {
+      const d = Math.abs(it.price - avg);
+      if (d < avgDiff) { avgDiff = d; avgItem = it; }
+    }
+    const variance = prices.reduce((acc, v) => acc + Math.pow(v - avg, 2), 0) / prices.length;
+    const std = Math.round(Math.sqrt(variance));
+    return { sortedItems, prices, avg, minItem, maxItem, medianItem, avgItem, std };
+  };
 
-  // クリックイベント
+  const soldStats = computeStats(soldItems);
+  const listingStats = computeStats(listingItems);
+
+  let html = '';
+
+  if (soldStats) {
+    html += `<div class="summary-section-title">💰 実取引価格（実際に売れた金額・${soldStats.prices.length}件）</div>`;
+    html += `<div class="summary-grid-inner">
+      ${cardHtml('平均価格', fmt(soldStats.avg), `±${soldStats.std.toLocaleString()}`, soldStats.avgItem, true)}
+      ${cardHtml('中央値', fmt(soldStats.medianItem.price), '外れ値に強い', soldStats.medianItem, true)}
+      ${cardHtml('最高落札', fmt(soldStats.maxItem.price), `${soldStats.prices.length}件中`, soldStats.maxItem, false)}
+      ${cardHtml('最低落札', fmt(soldStats.minItem.price), `${soldStats.prices.length}件中`, soldStats.minItem, false)}
+    </div>`;
+  }
+
+  if (listingStats) {
+    html += `<div class="summary-section-title" style="margin-top:14px">🏷️ 現行販売価格（今買える価格・${listingStats.prices.length}件）</div>`;
+    html += `<div class="summary-grid-inner">
+      ${cardHtml('平均価格', fmt(listingStats.avg), `±${listingStats.std.toLocaleString()}`, listingStats.avgItem, true)}
+      ${cardHtml('中央値', fmt(listingStats.medianItem.price), '外れ値に強い', listingStats.medianItem, true)}
+      ${cardHtml('最高販売', fmt(listingStats.maxItem.price), `${listingStats.prices.length}件中`, listingStats.maxItem, false)}
+      ${cardHtml('最低販売', fmt(listingStats.minItem.price), `${listingStats.prices.length}件中`, listingStats.minItem, false)}
+    </div>`;
+  }
+
+  $('summaryGrid').innerHTML = html;
+
+  // クリックイベント（タップで該当商品へジャンプ）
   $('summaryGrid').querySelectorAll('.stat-card[data-clickable="true"]').forEach(card => {
     card.addEventListener('click', () => {
       const url = card.dataset.url;
@@ -1134,27 +1196,32 @@ function renderSummary() {
     });
   });
 
+  // 全アイテムの価格帯分布
+  const allSorted = [...valid].sort((a, b) => a.price - b.price);
+  const allPrices = allSorted.map(r => r.price);
+  const distMin = allPrices[0];
+  const distMax = allPrices[allPrices.length - 1];
   const buckets = 6;
-  const range = max - min || 1;
+  const range = distMax - distMin || 1;
   const step = range / buckets;
   const counts = new Array(buckets).fill(0);
-  for (const p of prices) {
-    let idx = Math.floor((p - min) / step);
+  for (const p of allPrices) {
+    let idx = Math.floor((p - distMin) / step);
     if (idx >= buckets) idx = buckets - 1;
     counts[idx]++;
   }
   const maxCount = Math.max(...counts);
-  let html = '<div style="font-size:11px;color:var(--muted);margin-bottom:6px">価格帯分布</div>';
+  let distHtml = '<div style="font-size:11px;color:var(--muted);margin-bottom:6px">📊 価格帯分布（全件）</div>';
   for (let i = 0; i < buckets; i++) {
-    const from = Math.round(min + step * i);
+    const from = Math.round(distMin + step * i);
     const pct = maxCount ? (counts[i] / maxCount) * 100 : 0;
-    html += `<div class="bar-row">
+    distHtml += `<div class="bar-row">
       <div class="bar-label">${fmt(from)}〜</div>
       <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
       <div class="bar-value">${counts[i]}件</div>
     </div>`;
   }
-  $('distBars').innerHTML = html;
+  $('distBars').innerHTML = distHtml;
   $('summaryPanel').classList.remove('hidden');
 }
 
@@ -1192,6 +1259,9 @@ function filterResults(market) {
     const imageHtml = r.image
       ? `<div class="result-image"><img src="${escapeHtml(r.image)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'placeholder\\'>📷</div>'"></div>`
       : `<div class="result-image"><div class="placeholder">📷</div></div>`;
+    const typeBadge = r.sold === true
+      ? '<span class="badge badge-sold">💰 実取引</span>'
+      : '<span class="badge badge-listing">🏷️ 販売中</span>';
     const bodyHtml = `
       <div class="result-body">
         <div class="result-head">
@@ -1199,9 +1269,9 @@ function filterResults(market) {
         </div>
         <div class="result-meta">
           <span class="badge badge-${r.market}">${marketLabel(r.market)}</span>
+          ${typeBadge}
           ${r.condition ? `<span>${escapeHtml(r.condition)}</span>` : ''}
           ${r.sold_date ? `<span>${escapeHtml(r.sold_date)}</span>` : ''}
-          ${r.note ? `<span>${escapeHtml(r.note)}</span>` : ''}
         </div>
         <div class="result-price" style="margin-top:auto">¥${(r.price || 0).toLocaleString()}</div>
       </div>`;
@@ -1217,6 +1287,8 @@ function marketLabel(m) {
     paypay: 'Yahoo!フリマ',
     mercari: 'メルカリ',
     rakuma: 'ラクマ',
+    rakuten: '楽天市場',
+    yahoo_shopping: 'Yahoo!ショッピング',
     ebay: 'eBay',
     tiktok: 'TikTok'
   }[m] || m;
