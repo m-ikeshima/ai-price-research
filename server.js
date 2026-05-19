@@ -66,9 +66,9 @@ function applyExclude(items, excludeStr) {
   return items.filter(it => !words.some(w => (it.title || '').toLowerCase().includes(w.toLowerCase())));
 }
 
-// ブランド名の別表記マップ（カタカナ⇔英語）
+// ブランド名の別表記マップ（カタカナ⇔英語、部分マッチも考慮）
 const BRAND_ALIASES = {
-  'ルイヴィトン': ['ルイヴィトン', 'ルイ・ヴィトン', 'louis vuitton', 'louisvuitton', 'lv'],
+  'ルイヴィトン': ['ルイヴィトン', 'ルイ・ヴィトン', 'ヴィトン', 'louis vuitton', 'louisvuitton', 'lv'],
   'シャネル': ['シャネル', 'chanel'],
   'グッチ': ['グッチ', 'gucci'],
   'エルメス': ['エルメス', 'hermes', 'hermès'],
@@ -79,7 +79,7 @@ const BRAND_ALIASES = {
   'セリーヌ': ['セリーヌ', 'celine'],
   'フェンディ': ['フェンディ', 'fendi'],
   'バーバリー': ['バーバリー', 'burberry'],
-  'ボッテガヴェネタ': ['ボッテガヴェネタ', 'ボッテガ・ヴェネタ', 'bottega veneta', 'bottegaveneta'],
+  'ボッテガヴェネタ': ['ボッテガヴェネタ', 'ボッテガ・ヴェネタ', 'ボッテガ', 'bottega veneta', 'bottegaveneta', 'bottega'],
   'サンローラン': ['サンローラン', 'saint laurent', 'ysl'],
   'ナイキ': ['ナイキ', 'nike'],
   'アディダス': ['アディダス', 'adidas'],
@@ -88,6 +88,8 @@ const BRAND_ALIASES = {
   'コンバース': ['コンバース', 'converse'],
   'バンズ': ['バンズ', 'vans'],
   'アップル': ['アップル', 'apple', 'iphone', 'ipad', 'macbook', 'imac', 'airpods'],
+  'iphone': ['iphone', 'アイフォン', 'アップル', 'apple'],
+  'ipad': ['ipad', 'アイパッド', 'アップル', 'apple'],
   'ソニー': ['ソニー', 'sony'],
   'パナソニック': ['パナソニック', 'panasonic'],
   'シャープ': ['シャープ', 'sharp'],
@@ -108,6 +110,7 @@ function aliasesFor(word) {
   const lower = word.toLowerCase();
   // 完全一致
   if (BRAND_ALIASES[word]) return BRAND_ALIASES[word];
+  if (BRAND_ALIASES[lower]) return BRAND_ALIASES[lower];
   // 大文字小文字無視で値内検索
   for (const [k, v] of Object.entries(BRAND_ALIASES)) {
     if (v.some(a => a.toLowerCase() === lower)) return v;
@@ -115,17 +118,39 @@ function aliasesFor(word) {
   return [word];
 }
 
-// 関連性フィルタ: 検索結果タイトルにブランド名/主要キーワードが含まれるか確認
+// 関連性フィルタ: タイトルにブランド名（または最初の2単語のうち1つ）が含まれるかチェック
+// 重要: フィルタで件数が極端に減る（>90%）場合は元の配列を返す（フィルタオフ）
 function relevanceFilter(items, query) {
-  if (!query) return items;
+  if (!query || items.length === 0) return items;
   const words = query.trim().split(/[\s　]+/).filter(w => w.length >= 2);
   if (words.length === 0) return items;
-  // 1単語目をブランド名とみなす
-  const brandAliases = aliasesFor(words[0]).map(s => s.toLowerCase());
-  return items.filter(it => {
+
+  // 最初の2単語を候補にしてエイリアスを集める
+  const candidateAliases = new Set();
+  for (let i = 0; i < Math.min(2, words.length); i++) {
+    for (const a of aliasesFor(words[i])) {
+      candidateAliases.add(a.toLowerCase());
+    }
+  }
+
+  const filtered = items.filter(it => {
     const title = (it.title || '').toLowerCase();
-    return brandAliases.some(alias => title.includes(alias));
+    for (const alias of candidateAliases) {
+      if (title.includes(alias)) return true;
+    }
+    return false;
   });
+
+  // フィルタ後に件数が0、または極端に減った（10%未満になった）場合、フィルタを無効化
+  if (filtered.length === 0) {
+    console.log(`  フィルタ無効化: 0件になったため元の${items.length}件を返却`);
+    return items;
+  }
+  if (items.length >= 5 && filtered.length / items.length < 0.1) {
+    console.log(`  フィルタ無効化: 件数が極端に減少 (${items.length}→${filtered.length})`);
+    return items;
+  }
+  return filtered;
 }
 
 async function fetchHtml(url, opts = {}) {

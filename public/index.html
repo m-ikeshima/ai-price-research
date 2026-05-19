@@ -362,7 +362,77 @@
     -webkit-backdrop-filter: blur(10px);
   }
   .sticky-action .inner { max-width: 720px; margin: 0 auto; display: flex; gap: 8px; }
-  .sticky-action button { flex: 1; }
+  .sticky-action button { flex: 1; position: relative; overflow: hidden; }
+  /* リップル効果（タップ視覚化） */
+  button.busy {
+    background: linear-gradient(135deg, #475569, #334155);
+    color: #cbd5e1;
+    cursor: wait;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  /* プログレス表示 */
+  .progress-panel {
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 14px;
+    display: none;
+  }
+  .progress-panel.show { display: block; }
+  .progress-title {
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .progress-bar {
+    height: 6px;
+    background: var(--panel-2);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+  .progress-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .progress-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--panel-2);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .progress-item.pending { color: var(--muted); }
+  .progress-item.searching { color: var(--accent); }
+  .progress-item.done { color: var(--success); }
+  .progress-item.error { color: var(--danger); }
+  .progress-item .icon { font-size: 14px; min-width: 14px; }
+  .progress-item .name { flex: 1; }
+  .progress-item .count { font-weight: 700; }
+  .mini-spinner {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 2px solid transparent;
+    border-top-color: var(--accent);
+    border-right-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
 
   /* 設定モーダル */
   .modal-overlay {
@@ -488,8 +558,8 @@
       <label class="market-chip checked"><input type="checkbox" value="paypay" checked /><span class="dot">🛍️</span>Yahoo!フリマ</label>
       <label class="market-chip checked"><input type="checkbox" value="mercari" checked /><span class="dot">🟥</span>メルカリ</label>
       <label class="market-chip checked"><input type="checkbox" value="rakuma" checked /><span class="dot">🟪</span>ラクマ</label>
-      <label class="market-chip"><input type="checkbox" value="ebay" /><span class="dot">🌐</span>eBay</label>
-      <label class="market-chip"><input type="checkbox" value="tiktok" /><span class="dot">▶️</span>TikTok Shop</label>
+      <label class="market-chip checked"><input type="checkbox" value="ebay" checked /><span class="dot">🌐</span>eBay</label>
+      <label class="market-chip checked"><input type="checkbox" value="tiktok" checked /><span class="dot">▶️</span>TikTok Shop</label>
     </div>
   </div>
 
@@ -511,6 +581,16 @@
 
   <!-- ステータス -->
   <div id="status" class="status"></div>
+
+  <!-- 検索進捗パネル -->
+  <div class="progress-panel" id="progressPanel">
+    <div class="progress-title">
+      <span class="mini-spinner"></span>
+      <span id="progressTitleText">マーケット検索中...</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-list" id="progressList"></div>
+  </div>
 
   <!-- 価格サマリ -->
   <div class="panel hidden" id="summaryPanel">
@@ -691,7 +771,15 @@ async function analyzeImagesWithAI() {
     return;
   }
 
-  setStatus('<span class="spinner"></span>AIが画像を解析中...');
+  const btnAnalyze = $('btnAnalyze');
+  const btnSearch = $('btnSearch');
+  const origText = btnAnalyze.innerHTML;
+  btnAnalyze.disabled = true;
+  btnSearch.disabled = true;
+  btnAnalyze.classList.add('busy');
+  btnAnalyze.innerHTML = '<span class="spinner"></span>AI解析中...';
+
+  setStatus('<span class="spinner"></span>AIが画像を解析中... (10〜20秒)');
   try {
     let keyword = '';
     if (provider === 'claude') keyword = await analyzeWithClaude(apiKey);
@@ -702,10 +790,15 @@ async function analyzeImagesWithAI() {
     $('finalKeyword').value = keyword;
     $('aiResultBox').classList.remove('hidden');
     $('aiHint').classList.add('hidden');
-    setStatus('AI識別完了！キーワードを編集してから検索できます', 'success');
+    setStatus('AI識別完了！必要に応じてキーワードを編集してから「🔎 検索実行」を押してください', 'success');
   } catch (err) {
     console.error(err);
     setStatus('AI解析エラー: ' + err.message, 'error');
+  } finally {
+    btnAnalyze.disabled = false;
+    btnSearch.disabled = false;
+    btnAnalyze.classList.remove('busy');
+    btnAnalyze.innerHTML = origText;
   }
 }
 
@@ -879,39 +972,118 @@ async function searchAllMarkets() {
   const condition = $('condition').value;
   const serverUrl = getServerUrl();
 
+  // ボタンを「検索中」状態にする
+  const btnSearch = $('btnSearch');
+  const btnAnalyze = $('btnAnalyze');
+  const origSearchText = btnSearch.innerHTML;
+  btnSearch.disabled = true;
+  btnAnalyze.disabled = true;
+  btnSearch.classList.add('busy');
+  btnSearch.innerHTML = '<span class="spinner"></span>検索中...';
+
   state.results = [];
   $('summaryPanel').classList.add('hidden');
   $('resultsPanel').classList.add('hidden');
+  clearStatus();
 
-  setStatus(`<span class="spinner"></span>${markets.length} マーケットを検索中... "${keyword}"`);
+  // 進捗パネルを初期化
+  initProgress(markets, keyword);
 
-  const promises = markets.map(market =>
-    fetch(`${serverUrl}/api/search?market=${market}&q=${encodeURIComponent(keyword)}&exclude=${encodeURIComponent(exclude)}&condition=${condition}`)
-      .then(r => r.ok ? r.json() : r.json().catch(() => ({ error: r.statusText, items: [] })))
-      .then(data => ({ market, ...data }))
-      .catch(err => ({ market, error: err.message, items: [] }))
-  );
-
-  const results = await Promise.all(promises);
-
+  // 並列で検索しつつ、終わったマーケットから順に進捗UI更新
+  let completed = 0;
   let total = 0;
   const perMarket = {};
-  for (const r of results) {
-    perMarket[r.market] = { count: (r.items || []).length, error: r.error };
-    for (const item of (r.items || [])) {
-      state.results.push({ ...item, market: r.market });
-      total++;
+  const errors = [];
+
+  const promises = markets.map(async (market) => {
+    setProgressItem(market, 'searching');
+    try {
+      const res = await fetch(`${serverUrl}/api/search?market=${market}&q=${encodeURIComponent(keyword)}&exclude=${encodeURIComponent(exclude)}&condition=${condition}`);
+      const data = res.ok ? await res.json() : { error: res.statusText, items: [] };
+      const items = data.items || [];
+      perMarket[market] = { count: items.length, error: data.error };
+      for (const item of items) {
+        state.results.push({ ...item, market });
+        total++;
+      }
+      if (data.error) {
+        errors.push(`${marketLabel(market)}: ${data.error}`);
+        setProgressItem(market, 'error', 0, data.error);
+      } else {
+        setProgressItem(market, 'done', items.length);
+      }
+    } catch (err) {
+      perMarket[market] = { count: 0, error: err.message };
+      errors.push(`${marketLabel(market)}: ${err.message}`);
+      setProgressItem(market, 'error', 0, err.message);
+    } finally {
+      completed++;
+      updateProgressBar(completed, markets.length, total);
     }
-  }
+  });
+
+  await Promise.all(promises);
+
+  // ボタンを元に戻す
+  btnSearch.disabled = false;
+  btnAnalyze.disabled = false;
+  btnSearch.classList.remove('busy');
+  btnSearch.innerHTML = origSearchText;
+
+  // 進捗パネルを2秒後に閉じる
+  setTimeout(() => $('progressPanel').classList.remove('show'), 2000);
 
   if (total === 0) {
-    const errs = Object.entries(perMarket).filter(([k,v]) => v.error).map(([k,v]) => `${k}: ${v.error}`).join(' / ');
-    setStatus(`取引データが見つかりませんでした${errs ? '<br>' + errs : ''}`, 'error');
+    const errMsg = errors.length ? '<br>エラー: ' + errors.join(' / ') : '';
+    setStatus(`取引データが見つかりませんでした。キーワードを短く・一般的に変えて再試行してください。${errMsg}`, 'error');
     return;
   }
-  setStatus(`✅ ${total} 件取得 (${markets.length}マーケット)`, 'success');
+  setStatus(`✅ ${total} 件取得 (${markets.length}マーケット中 ${Object.values(perMarket).filter(v=>v.count>0).length} マーケットからデータ)`, 'success');
   renderSummary();
   renderResults(perMarket);
+}
+
+// 進捗パネル初期化
+function initProgress(markets, keyword) {
+  $('progressPanel').classList.add('show');
+  $('progressTitleText').textContent = `"${keyword}" を ${markets.length} マーケットで検索中...`;
+  $('progressFill').style.width = '0%';
+  const list = $('progressList');
+  list.innerHTML = '';
+  for (const m of markets) {
+    const item = document.createElement('div');
+    item.className = 'progress-item pending';
+    item.id = `prog-${m}`;
+    item.innerHTML = `<span class="icon">⏳</span><span class="name">${marketLabel(m)}</span><span class="count"></span>`;
+    list.appendChild(item);
+  }
+}
+
+// 個別マーケット状態更新
+function setProgressItem(market, state, count = 0, errMsg = '') {
+  const item = $(`prog-${market}`);
+  if (!item) return;
+  item.className = 'progress-item ' + state;
+  const icon = item.querySelector('.icon');
+  const countEl = item.querySelector('.count');
+  if (state === 'searching') {
+    icon.innerHTML = '<span class="mini-spinner"></span>';
+    countEl.textContent = '検索中...';
+  } else if (state === 'done') {
+    icon.textContent = '✅';
+    countEl.textContent = count > 0 ? `${count} 件` : '0 件';
+  } else if (state === 'error') {
+    icon.textContent = '❌';
+    countEl.textContent = 'エラー';
+    item.title = errMsg;
+  }
+}
+
+// 進捗バー更新
+function updateProgressBar(completed, total, foundCount) {
+  const pct = (completed / total) * 100;
+  $('progressFill').style.width = pct + '%';
+  $('progressTitleText').textContent = `${completed} / ${total} マーケット完了 (合計 ${foundCount} 件取得)`;
 }
 
 // ====== サマリ表示 ======
